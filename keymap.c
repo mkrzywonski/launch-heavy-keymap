@@ -1,16 +1,27 @@
 #include QMK_KEYBOARD_H
 #include "timer.h"
 #include "x_strings.h" // rename example_x_strings.h to x_strings.h
+#include "idle_messages.h"
+#include <stdio.h>
+
 #define ______ KC_TRNS
+#define MSG_DELAY 500 // half a second per character
+#define IDLE_TIMEOUT_MS 900000 // 15 minutes in milliseconds
 
 static uint16_t shift_timer;
 static bool shift_pressed = false;
 static bool lyr1_activated = false;
 static bool insert_mode = true;
+static char message[256];
+static bool msg_pause = false;
+static uint16_t msg_timer = 0;
+static bool boot_msg = true;
+static uint32_t idle_ms = 0;
+static uint16_t last_timer = 0;
 
 enum layers{ First, Second, Third, Fourth };
 enum custom_keycodes {
-    RGB_01 = SAFE_RANGE, RGB_02, RGB_03, RGB_04, RGB_05, RGB_06, RGB_07, RGB_08, RGB_09, RGB_10, RGB_11, RGB_12, 
+    RGB_01 = SAFE_RANGE, RGB_02, RGB_03, RGB_04, RGB_05, RGB_06, RGB_07, RGB_08, RGB_09, RGB_10, RGB_11, RGB_12,
     RGB_NEXT, RGB_PREV, RGB_SATI, RGB_SATD, RGB_SAT, RGB_SPDI, RGB_SPDD, LAYER1,
     X_NAME, X_FIRST, X_LAST, X_ADDR, X_EMAIL, X_PHONE
 };
@@ -93,20 +104,61 @@ ________________________________________________________________________________
     KC_ESC,  _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,      _______,  _______, _______, _______, _______,
     _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,      _______,  KC_SCRL, _______, _______, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,  _______,  _______, _______, _______, _______,
-          _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,    _______,      _______,  _______, _______, _______,
+          _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,    _______,      TO(0),    _______, _______, _______,
           _______,     _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,    _______,  _______,           _______, _______, _______, _______,
           _______, _______, _______, _______,     _______,          _______,    _______,   _______,  _______,        _______, _______, _______,        _______,    _______
   ),
 
+  // Calculator
   [Fourth] = LAYOUT(
-    KC_ESC,  _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,      _______,  _______, _______, _______, _______,
-    _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,      _______,  _______, _______, _______, _______,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,  _______,  _______, _______, _______, _______,
-          _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,    _______,      _______,  _______, _______, _______,
-          _______,     _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,    _______,  _______,           _______, _______, _______, _______,
-          _______, _______, _______, _______,     _______,          _______,    _______,   _______,  _______,        _______, _______, _______,        _______,    _______
+    TO(0),   XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,      XXXXXXX,  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
+    XXXXXXX, KC_1,    KC_2,    KC_3,    KC_4,    KC_5,    KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_MINS, KC_EQL,  KC_BSPC,      XXXXXXX,  KC_NUM,  KC_PSLS, KC_PAST, KC_PMNS,
+        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, KC_O,    KC_P,    XXXXXXX, XXXXXXX, XXXXXXX,  XXXXXXX,  KC_P7,   KC_P8,   KC_P9,   KC_PPLS,
+          XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, KC_H,    XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,    KC_ENT,       XXXXXXX,  KC_P4,   KC_P5,   KC_P6,
+          XXXXXXX,     XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, KC_B,    XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,    XXXXXXX,  XXXXXXX,           KC_P1,   KC_P2,   KC_P3,   KC_PENT,
+          XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,     XXXXXXX,          XXXXXXX,    XXXXXXX,   XXXXXXX,  XXXXXXX,        XXXXXXX, XXXXXXX, XXXXXXX,        KC_P0,      KC_PDOT
   ),
 };
+
+// Find the LED index for a given character
+uint8_t get_led_index_for_char(char c) {
+    uint16_t keycode = KC_NO;
+
+    if (c >= 'a' && c <= 'z') {
+        keycode = KC_A + (c - 'a');
+    } else if (c >= 'A' && c <= 'Z') {
+        keycode = KC_A + (c - 'A');
+    } else if (c >= '0' && c <= '9') {
+        keycode = KC_1 + (c - '1');
+        if (c == '0') keycode = KC_0;
+    } else if (c == ' ') {
+        keycode = KC_SPC;
+    } else if (c == '.') {
+        keycode = KC_DOT;
+    } else if (c == ',') {
+        keycode = KC_COMM;
+    } else if (c == '-') {
+        keycode = KC_MINS;
+    } else if (c == '\'') {
+        keycode = KC_QUOT;
+    } else if (c == '\\') {
+        keycode = KC_BSLS;
+    } else if (c == '/') {
+        keycode = KC_SLSH;
+    } else if (c == '=') {
+        keycode = KC_EQL;
+    }
+
+    // Search through the base layer for this keycode
+    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+        for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+            if (keymap_key_to_keycode(0, (keypos_t){.row = row, .col = col}) == keycode) {
+                return g_led_config.matrix_co[row][col];
+            }
+        }
+    }
+    return NO_LED;
+}
 
 // Define RGB backlight defaults for each layer
 rgb_config_t my_layer_rgb[DYNAMIC_KEYMAP_LAYER_COUNT] = {
@@ -157,7 +209,7 @@ rgb_config_t my_layer_rgb[DYNAMIC_KEYMAP_LAYER_COUNT] = {
         },
         .speed = RGB_MATRIX_DEFAULT_SPD,
         .flags = LED_FLAG_KEYLIGHT,
-    },        
+    },
 };
 
 // Handle layer changes
@@ -171,13 +223,13 @@ layer_state_t layer_state_set_user(layer_state_t state) {
 
     // Apply RGB Settings after changes to layer state
     uint8_t layer = get_highest_layer(state);
-    
+
     if (my_layer_rgb[layer].enable) {
         rgb_matrix_enable();
         rgb_matrix_mode(my_layer_rgb[layer].mode);
         rgb_matrix_set_speed(my_layer_rgb[layer].speed);
         rgb_matrix_sethsv(my_layer_rgb[0].hsv.h, my_layer_rgb[0].hsv.s, my_layer_rgb[0].hsv.v);
-        
+
         // If we're on a higher layer, overlay its colors for active keys
         if (layer > 0) {
             for (int row = 0; row < MATRIX_ROWS; row++) {
@@ -186,7 +238,7 @@ layer_state_t layer_state_set_user(layer_state_t state) {
                     if (keycode != KC_TRNS && keycode != 0) {
                         uint8_t led_index = g_led_config.matrix_co[row][col];
                         if (led_index != NO_LED) {
-                            rgb_matrix_set_color(led_index, 
+                            rgb_matrix_set_color(led_index,
                                 my_layer_rgb[layer].hsv.h,
                                 my_layer_rgb[layer].hsv.s,
                                 my_layer_rgb[layer].hsv.v);
@@ -203,7 +255,54 @@ layer_state_t layer_state_set_user(layer_state_t state) {
 
 // Show active keys on FN layers in a different collor
 bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
+    uint16_t current_timer = timer_read();
     uint8_t layer = get_highest_layer(layer_state);
+
+    // Check for timer rollover and update idle counter
+    if (current_timer < last_timer) {
+        idle_ms += (65535 - last_timer + current_timer);
+    } else {
+        idle_ms += (current_timer - last_timer);
+    }
+    last_timer = current_timer;
+
+    // Check for idle timeout and display a random message
+    if (idle_ms >= IDLE_TIMEOUT_MS) {
+        uint8_t msg_index = rand() % NUM_IDLE_MESSAGES;
+        const char *msg = (const char *)idle_messages[msg_index];
+        strcpy(message, msg);
+        idle_ms = 0;
+    }
+
+    // Display Messages
+    if (msg_timer == 0) {   // Just powered on
+        msg_timer = current_timer;
+    }
+    if (boot_msg) { // Show boot message
+        strcpy(message, "HELLO ");
+        strcat(message, X_FIRST_TEXT);
+        boot_msg = false;
+    }
+    if (message[0] == '\0') {   // No Message
+        msg_timer = current_timer;
+        msg_pause = false;
+    }
+    if (msg_pause){ // Turn off LED between letters
+        if (msg_timer + (MSG_DELAY / 2) < timer_read()) {
+            msg_timer = current_timer;  // Reset timer
+            msg_pause = false;
+        }
+    } else if (message[0] != '\0') {  // Check if message exists
+        uint8_t led_index = get_led_index_for_char(message[0]);
+        if (led_index >= led_min && led_index < led_max && led_index != NO_LED) {
+            rgb_matrix_set_color(led_index, RGB_RED);
+        }
+        if (msg_timer + MSG_DELAY < timer_read()) {
+            memmove(message, message + 1, strlen(message));  // Remove first char
+            msg_timer = current_timer;  // Reset timer
+            msg_pause = true;
+        }
+    }
 
     // Add caps lock indicator
     if (host_keyboard_led_state().caps_lock) {
@@ -212,12 +311,12 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
             rgb_matrix_set_color(caps_led_index, RGB_RED); // Set caps lock key to red
         }
     }
-    
+
     // Add caps word indicator for shift keys
     if (is_caps_word_on()) {
         uint8_t left_shift_led = g_led_config.matrix_co[4][0];  // Row 4, Col 0 for left shift
         uint8_t right_shift_led = g_led_config.matrix_co[4][11]; // Row 4, Col 11 for right shift
-        
+
         if (left_shift_led >= led_min && left_shift_led < led_max && left_shift_led != NO_LED) {
             rgb_matrix_set_color(left_shift_led, RGB_RED);
         }
@@ -240,7 +339,7 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
         if (del_led >= led_min && del_led < led_max && del_led != NO_LED) {
             rgb_matrix_set_color(del_led, RGB_RED);
         }
-    }    
+    }
 
     if (layer > 0 && my_layer_rgb[layer].enable) {
         // Convert layer 0's HSV to RGB
@@ -249,7 +348,7 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
             .s = my_layer_rgb[0].hsv.s,
             .v = my_layer_rgb[0].hsv.v
         });
-        
+
         // Set base layer colors first
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
             for (uint8_t col = 0; col < MATRIX_COLS; col++) {
@@ -259,14 +358,14 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
                 }
             }
         }
-        
+
         // Convert current layer's HSV to RGB
         RGB layer_rgb = hsv_to_rgb((HSV){
             .h = my_layer_rgb[layer].hsv.h,
             .s = my_layer_rgb[layer].hsv.s,
             .v = my_layer_rgb[layer].hsv.v
         });
-        
+
         // Overlay active keys with current layer colors
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
             for (uint8_t col = 0; col < MATRIX_COLS; col++) {
@@ -285,6 +384,8 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
 
 // Handle Keyboard Input
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    idle_ms = 0; // Reset idle timer
+
     // Enable CapsWord on Shift key tap
     switch (keycode) {
         case KC_LSFT:  // Left Shift key
@@ -302,20 +403,21 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 }
             }
             return true;
-    }    
+    }
 
     // Handle general keypresses
     if (record->event.pressed) {
         switch (keycode) {
             // FN + Number row to switch RGB effects
             case RGB_01:
+                strcpy(message, "This is a test");
                 my_layer_rgb[0].mode = RGB_MATRIX_SOLID_COLOR;
                 rgb_matrix_mode(RGB_MATRIX_SOLID_COLOR); // Apply the mode immediately
                 return false;
             case RGB_02:
                 my_layer_rgb[0].mode = RGB_MATRIX_CYCLE_ALL;
                 rgb_matrix_mode(RGB_MATRIX_CYCLE_ALL); // Apply the mode immediately
-                return false;                
+                return false;
             case RGB_03:
                 my_layer_rgb[0].mode = RGB_MATRIX_CYCLE_LEFT_RIGHT;
                 rgb_matrix_mode(RGB_MATRIX_CYCLE_LEFT_RIGHT); // Apply the mode immediately
@@ -366,7 +468,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 rgb_matrix_decrease_hue();
                 my_layer_rgb[0].hsv.h = rgb_matrix_get_hue();
                 return false;
-            
+
             // FN + Mute / Volume Down / Volume Up to adjust RGB Brightness
             case RGB_TOG:
                 my_layer_rgb[0].enable = !my_layer_rgb[0].enable;
@@ -445,7 +547,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 if (get_mods() & MOD_MASK_SHIFT) {
                     insert_mode = !insert_mode;
                 }
-                return true;                
+                return true;
         }
     }
     return true;
