@@ -34,12 +34,13 @@ Shinethrough keycaps from [FKcustom](https://fkcaps.com/custom/2S5MWD/)
 ![Calculator](./calculator.png)
 - Num-Lock to enable/disable calculator mode
 - Print Screen to toggle typing/stealth input
-- Results will flash on number row
+- Current result will flash on number row
+- Shift-Enter to type result
 - Shift-/ for modulus
 - Shift-* for exponents (defaults to ^2)
-- Shift-- for roots (defaults to square root)
+- Shift-- for root (defaults to square root)
+- Shift-0 to clear entry
 - Shift-0 again to clear all
-- Shift-Enter to type result
 - Fn-D for Decimal
 - Fn-O for Octal
 - Fn-H for Hexadecimal
