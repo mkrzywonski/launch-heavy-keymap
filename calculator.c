@@ -98,13 +98,13 @@ bool handle_calculator_input(uint16_t keycode, keyrecord_t *record) {
 void print_result(void) {
     char result[BUFFER_SIZE] = {0};
     clear_mods();
-    double_to_string(calculator_current_value, calculator_base, result, sizeof(result), 6);
+    double_to_string(calculator_current_value, calculator_base, result, sizeof(result), 9);
     SEND_STRING(result);
 }
 
 bool is_calculator_keycode(uint16_t keycode) {
     return ((keycode >= KC_PSLS && keycode <= KC_PDOT) ||
-        (keycode >= C_CLEAR && keycode <= C_HEXF) ||
+        (keycode >= C_CLEAR && keycode <= C_PI) ||
         (keycode == KC_PSCR));
 }
 
@@ -119,7 +119,6 @@ void clear_calculator(void) {
         calculator_current_value = 0.0;
         calculator_operator = '+';
     }
-    if (calculator_print_active) tap_code(KC_ENTER);
     clear_calc_status_active = true;
     clear_calc_status_timer = timer_read();
 }
@@ -185,6 +184,14 @@ bool handle_digits(uint16_t keycode) {
         set_mods(mod_state);
         return false;   // Keycode handled, don't process further
     }
+
+    // Pi
+    if (keycode == C_PI) {
+        double_to_string(PI, calculator_base, calculator_input_buffer, sizeof(calculator_input_buffer), 9);
+        calculator_operand = PI;
+        if (calculator_print_active) SEND_STRING(calculator_input_buffer);
+        return false;   // Keycode handled, don't process further
+    }
     return true; // Keycode not handled, continue processing
 }
 
@@ -192,7 +199,7 @@ void handle_base_conversion(uint16_t keycode) {
     if (keycode == C_BIN || keycode == C_OCT || keycode == C_DEC || keycode == C_HEX) {
         calculator_base = base_key_value[keycode]; // set the new base
         // format the input buffer to the new base
-        double_to_string(calculator_operand, calculator_base, calculator_input_buffer, sizeof(calculator_input_buffer), 6);
+        double_to_string(calculator_operand, calculator_base, calculator_input_buffer, sizeof(calculator_input_buffer), 9);
     }
 }
 
@@ -217,12 +224,36 @@ void handle_operators(uint16_t keycode) {
         calculator_current_value = perform_operation(calculator_current_value, calculator_operator, calculator_operand);
 
         // Set the new operator
-        calculator_operator = operator_key_value[keycode];
+        if (get_mods() & (MOD_MASK_SHIFT | MOD_MASK_CTRL | MOD_MASK_ALT)) {
+            switch (keycode) {
+                case KC_PMNS:   // Shift-minus for roots
+                    calculator_operator = 'r';
+                    break;
+                case KC_PAST:   // Shift-* for exponents
+                    calculator_operator = '^';
+                    break;
+                case KC_PSLS:   // Shift-/ for modulus
+                    calculator_operator = '%';
+                    break;
+            }
+            clear_mods();
+        } else {
+            calculator_operator = operator_key_value[keycode];
+        }
 
         // Print the operator
         if (calculator_print_active) {
             char formatted_str[BUFFER_SIZE];
-            snprintf(formatted_str, sizeof(formatted_str), " %c ", calculator_operator);
+            switch (calculator_operator) {
+                case 'r':
+                    snprintf(formatted_str, sizeof(formatted_str), " rt ");
+                    break;
+                case 'e':
+                    snprintf(formatted_str, sizeof(formatted_str), " ^ ");
+                    break;
+                default: 
+                    snprintf(formatted_str, sizeof(formatted_str), " %c ", calculator_operator);
+            }
             SEND_STRING(formatted_str);
         }
 
@@ -232,7 +263,7 @@ void handle_operators(uint16_t keycode) {
         calculator_operand = 0.0;
 
         char result[BUFFER_SIZE] = {0};
-        double_to_string(calculator_current_value, calculator_base, result, sizeof(result), 6);
+        double_to_string(calculator_current_value, calculator_base, result, sizeof(result), 9);
         if (message[0] == '\0') {
             flash(result, true);
         }
@@ -338,6 +369,16 @@ void double_to_string(double value, uint16_t base, char *buffer, size_t buffer_s
                 break;  // Stop if there's no remaining fraction
             }
         }
+        
+        // Remove trailing zeros
+        while (index > 0 && buffer[index - 1] == '0') {
+            index--;
+        }
+        
+        // Remove decimal point if it's the last character
+        if (index > 0 && buffer[index - 1] == '.') {
+            index--;
+        }        
     }
 
     buffer[index] = '\0';  // Null-terminate the string
@@ -356,7 +397,7 @@ void handle_enter(uint16_t keycode) {
         calculator_buf_index = 0;
         calculator_input_buffer[0] = '\0';
 
-        double_to_string(calculator_current_value, calculator_base, result, sizeof(result), 6);
+        double_to_string(calculator_current_value, calculator_base, result, sizeof(result), 9);
         if (calculator_print_active) {
             SEND_STRING(" = ");
             SEND_STRING(result);
@@ -387,10 +428,50 @@ double perform_operation(double result, char operator, double operand) {
         case '/':
             if (operand == 0) {
                 clear_calculator();
+                if (calculator_print_active) SEND_STRING(" ERROR: Undefined");
                 flash("ERROR", false);
                 return result;
             } else {
                 result /= operand;
+            }
+            break;
+        case '%':
+            if (operand == 0) {
+                clear_calculator();
+                if (calculator_print_active) SEND_STRING(" ERROR: Undefined");
+                flash("ERROR", false);
+                return result;
+            } else {
+                result = (double)((int)result % (int)operand);
+            }
+            break;
+        case '^':
+            if (calculator_input_buffer[0] == '\0') {
+                // User has not entered an operand, default to 2
+                operand = 2.0;
+                if (calculator_print_active) {
+                    // but the default never got printed. Do that now.
+                    SEND_STRING("2");
+                }
+            }
+            result = pow(calculator_current_value, operand);
+            break;
+        case 'r':
+            if (calculator_input_buffer[0] == '\0') {
+                // User has not entered an operand, default to 2
+                operand = 2.0;
+                if (calculator_print_active) {
+                    // but the default never got printed. Do that now.
+                    SEND_STRING("2");
+                }
+            }
+            if (operand == 0) {
+                clear_calculator();
+                if (calculator_print_active) SEND_STRING(" ERROR: Undefined");
+                flash("ERROR", false);
+                return result;
+            } else {
+                result = pow(calculator_current_value, 1.0 / operand);
             }
             break;
     }

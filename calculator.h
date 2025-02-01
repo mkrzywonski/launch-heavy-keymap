@@ -21,6 +21,8 @@ double perform_operation(double result, char operator, double operand);
 void calculator_rgb_display(void);
 void print_result(void);
 
+#define PI 3.14159265358979323846
+
 static const uint8_t key_numeric_value[] = {
     [KC_P0] = 0,
     [KC_P1] = 1,
@@ -37,7 +39,8 @@ static const uint8_t key_numeric_value[] = {
     [C_HEXC] = 12,
     [C_HEXD] = 13,
     [C_HEXE] = 14,
-    [C_HEXF] = 15
+    [C_HEXF] = 15,
+    [C_PI] = PI
 };
 
 static const char key_char_value[] = {
