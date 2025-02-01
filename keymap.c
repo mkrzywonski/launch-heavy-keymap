@@ -1,30 +1,27 @@
 #include QMK_KEYBOARD_H
+#include "process_record_handlers.h"
 #include "timer.h"
-#include "x_strings.h" // rename example_x_strings.h to x_strings.h
+#include "static_macros.h"
+#include "custom_keycodes.h"
 #include "idle_messages.h"
+#include "calculator.h"
+#include "rgb.h"
 #include <stdio.h>
 
 #define ______ KC_TRNS
 #define MSG_DELAY 500 // half a second per character
 #define IDLE_TIMEOUT_MS 900000 // 15 minutes in milliseconds
 
-static uint16_t shift_timer;
-static bool shift_pressed = false;
 static bool lyr1_activated = false;
 static bool insert_mode = true;
-static char message[256];
 static bool msg_pause = false;
-static uint16_t msg_timer = 0;
+static int32_t msg_timer = 0;
 static bool boot_msg = true;
 static uint32_t idle_ms = 0;
 static uint16_t last_timer = 0;
+char message[256];
 
 enum layers{ First, Second, Third, Fourth };
-enum custom_keycodes {
-    RGB_01 = SAFE_RANGE, RGB_02, RGB_03, RGB_04, RGB_05, RGB_06, RGB_07, RGB_08, RGB_09, RGB_10, RGB_11, RGB_12,
-    RGB_NEXT, RGB_PREV, RGB_SATI, RGB_SATD, RGB_SAT, RGB_SPDI, RGB_SPDD, LAYER1,
-    X_NAME, X_FIRST, X_LAST, X_ADDR, X_EMAIL, X_PHONE
-};
 
 const key_override_t backspace_override = ko_make_basic(MOD_MASK_SHIFT, KC_BSPC, KC_DEL);
 const key_override_t delete_override = ko_make_basic(MOD_MASK_SHIFT, KC_DEL, KC_INS);
@@ -75,17 +72,17 @@ ________________________________________________________________________________
 |        | SOLID  | CYCLE  | LEFT-> | UP->   | OUT->  | OUT->  | RAINBOW| PIN    | SPIRAL | RAIN   | SPLASH | MULTI  |            || LAYER  ||  RGB   | RGB SAT| RGB SAT| RGB SAT|
 |        | COLOR  | ALL    | RIGHT  | DOWN   | IN     | IN DUAL| CHAVRON| WHEEL  |        | DROPS  |        | SPLASH |    DEL     ||   3    ||  HUE-  | TOGGLE |    -   |    +   |
 |________|________|________|________|________|________|________|________|________|________|________|________|________|____________||________||________|________|________|________|
-|            |        |        |        |        |        |        |        |        |        |        |        |        |        || LAYER  ||        |  PREV  |        |        |
-|            |        |        | X_EMAIL|        |        |        |        |        |        | X_PHONE|        |        |        ||   2    ||        |  TRACK |        | RGB    |
+|            |        |        |        |        |        |        |        |        |        |        |        |        |        || LAYER  ||        |        |        |        |
+|            |        |        | X_EMAIL|        |        |        |        |        | C_OCT  | X_PHONE|        |        |        ||   2    ||        |        |        | RGB    |
 |____________|________|________|________|________|________|________|________|________|________|________|________|________|________||________||________|________|________| EFFECT |
-  |            |        |        |        |        |        |        |        |        |        |        |        |            |   | LAYER  ||        |  PLAY  |        | SPEED  |
-  |            | X_ADDR |        |        | X_FIRST|        |        |        |        | X_LAST |        |        |            |   |   1    || REWIND |  PAUSE | FORWARD|   +    |
+  |            |        |        |        |        |        |        |        |        |        |        |        |            |   | LAYER  ||        |        |        | SPEED  |
+  |            | X_ADDR |        | C_DEC  | X_FIRST|        | C_HEX  |        |        | X_LAST |        |        |            |   |   1    || C_HEXD | C_HEXE | C_HEXF |   +    |
   |____________|________|________|________|________|________|________|________|________|________|________|________|____________|___|________||________|________|________|________|
-  |                |        |        |        |        |        |        |        |        |        |        |            |        |         |        |  NEXT  |        |        |
-  |    CAPS LOCK   |        |        |        |        |        | X_NAME |        |        |        |        |  CAPS LOCK |        |         |        |  TRACK |        | RGB    |
+  |                |        |        |        |        |        |        |        |        |        |        |            |        |         |        |        |        |        |
+  |    CAPS LOCK   |        |        | C_CLEAR|        | C_BIN  | X_NAME |        |        |        |        |  CAPS LOCK |        |         | C_HEXA | C_HEXB | C_HEXC | RGB    |
   |________________|________|________|________|________|________|________|________|________|________|________|____________|________|________ |________|________|________| EFFECT |
   |            |        |       |        |                 |                 |        | MACRO  |             |   |        |        |        ||                 |        | SPEED  |
-  |            |        |       |        |                 |                 |        | RECORD |             |   |        |        |        ||                 |  STOP  |   -    |
+  |            |        |       |        |                 |                 |        | RECORD |             |   |        |        |        ||                 |        |   -    |
   |____________|________|_______|________|_________________|_________________|________|________|_____________|   |________|________|________||_________________|________|________|
   * 'QK_BOOT' resets the controller and puts the board into firmware flashing mode. If this key is hit accidentally, just unplug the board
   *        and plug it back in.
@@ -94,10 +91,10 @@ ________________________________________________________________________________
   [Second] = LAYOUT(
     QK_BOOT, KC_F13,  KC_F14,  KC_F15,  KC_F16,  KC_F17,  KC_F18,  KC_F19,  KC_F20,  KC_F21,  KC_F22,  KC_F23,  KC_F24,  KC_INS,       TO(3),    RGB_PREV, RGB_TOG, RGB_VAD, RGB_VAI,
     _______, RGB_01,  RGB_02,  RGB_03,  RGB_04,  RGB_05,  RGB_06,  RGB_07,  RGB_08,  RGB_09,  RGB_10,  RGB_11,  RGB_12,  KC_DEL,       TO(2),    RGB_NEXT, RGB_SAT, RGB_SATD, RGB_SATI,
-        _______, _______, _______, X_EMAIL, _______, _______, _______, _______, _______, _______,  X_PHONE, _______, _______, _______, LAYER1,   _______, KC_MPRV, _______, RGB_SPDI,
-          _______, X_ADDR,  _______, _______, X_FIRST, _______, _______, _______, _______,   X_LAST,  _______, _______,    _______,    TO(0),    KC_MRWD, KC_MPLY, KC_MFFD,
-          KC_CAPS,     _______, _______, _______, _______, _______, X_NAME, _______, _______, _______, _______,    KC_CAPS,  _______,           _______, KC_MNXT, _______, RGB_SPDD,
-          _______, _______, _______, _______,     _______,          _______,    _______,   DM_REC1,  _______,        _______, _______, _______,         _______,    KC_MSTP
+        _______, _______, _______, X_EMAIL, _______, _______, _______, _______, _______, C_OCT,   X_PHONE, _______, _______, _______, LAYER1,    _______, _______, _______, RGB_SPDI,
+          _______, X_ADDR,  _______, C_DEC,   X_FIRST, _______, C_HEX,   _______, _______,   X_LAST,  _______, _______,    _______,    TO(0),    C_HEXD,  C_HEXE,  C_HEXF,
+          KC_CAPS,     _______, _______, C_CLEAR, _______, C_BIN,   X_NAME, _______, _______, _______, _______,    KC_CAPS,  _______,            C_HEXA,  C_HEXB,  C_HEXC,  RGB_SPDD,
+          _______, _______, _______, _______,     _______,          _______,    _______,   DM_REC1,  _______,        _______, _______, _______,         _______,    _______
   ),
 
   [Third] = LAYOUT(
@@ -111,54 +108,14 @@ ________________________________________________________________________________
 
   // Calculator
   [Fourth] = LAYOUT(
-    TO(0),   XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,      XXXXXXX,  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
-    XXXXXXX, KC_1,    KC_2,    KC_3,    KC_4,    KC_5,    KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_MINS, KC_EQL,  KC_BSPC,      XXXXXXX,  KC_NUM,  KC_PSLS, KC_PAST, KC_PMNS,
-        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, KC_O,    KC_P,    XXXXXXX, XXXXXXX, XXXXXXX,  XXXXXXX,  KC_P7,   KC_P8,   KC_P9,   KC_PPLS,
-          XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, KC_H,    XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,    KC_ENT,       XXXXXXX,  KC_P4,   KC_P5,   KC_P6,
-          XXXXXXX,     XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, KC_B,    XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,    XXXXXXX,  XXXXXXX,           KC_P1,   KC_P2,   KC_P3,   KC_PENT,
-          XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,     XXXXXXX,          XXXXXXX,    XXXXXXX,   XXXXXXX,  XXXXXXX,        XXXXXXX, XXXXXXX, XXXXXXX,        KC_P0,      KC_PDOT
+    KC_ESC,  _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,      _______,  _______, _______, _______, _______,
+    _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,      _______,  KC_SCRL, _______, _______, _______,
+        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,  _______,  _______, _______, _______, _______,
+          _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,    _______,      TO(0),    _______, _______, _______,
+          _______,     _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,    _______,  _______,           _______, _______, _______, _______,
+          _______, _______, _______, _______,     _______,          _______,    _______,   _______,  _______,        _______, _______, _______,        _______,    _______
   ),
 };
-
-// Find the LED index for a given character
-uint8_t get_led_index_for_char(char c) {
-    uint16_t keycode = KC_NO;
-
-    if (c >= 'a' && c <= 'z') {
-        keycode = KC_A + (c - 'a');
-    } else if (c >= 'A' && c <= 'Z') {
-        keycode = KC_A + (c - 'A');
-    } else if (c >= '0' && c <= '9') {
-        keycode = KC_1 + (c - '1');
-        if (c == '0') keycode = KC_0;
-    } else if (c == ' ') {
-        keycode = KC_SPC;
-    } else if (c == '.') {
-        keycode = KC_DOT;
-    } else if (c == ',') {
-        keycode = KC_COMM;
-    } else if (c == '-') {
-        keycode = KC_MINS;
-    } else if (c == '\'') {
-        keycode = KC_QUOT;
-    } else if (c == '\\') {
-        keycode = KC_BSLS;
-    } else if (c == '/') {
-        keycode = KC_SLSH;
-    } else if (c == '=') {
-        keycode = KC_EQL;
-    }
-
-    // Search through the base layer for this keycode
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-        for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-            if (keymap_key_to_keycode(0, (keypos_t){.row = row, .col = col}) == keycode) {
-                return g_led_config.matrix_co[row][col];
-            }
-        }
-    }
-    return NO_LED;
-}
 
 // Define RGB backlight defaults for each layer
 rgb_config_t my_layer_rgb[DYNAMIC_KEYMAP_LAYER_COUNT] = {
@@ -203,8 +160,8 @@ rgb_config_t my_layer_rgb[DYNAMIC_KEYMAP_LAYER_COUNT] = {
         .enable = 1,
         .mode = RGB_MATRIX_CUSTOM_raw_rgb,
         .hsv = {
-            .h = HSV_GOLD,
-            .s = 255,
+            .h = HSV_BLUE,
+            .s = 0,
             .v = RGB_MATRIX_MAXIMUM_BRIGHTNESS,
         },
         .speed = RGB_MATRIX_DEFAULT_SPD,
@@ -261,6 +218,7 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     // Check for timer rollover and update idle counter
     if (current_timer < last_timer) {
         idle_ms += (65535 - last_timer + current_timer);
+        msg_timer -= 65536;
     } else {
         idle_ms += (current_timer - last_timer);
     }
@@ -270,7 +228,7 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     if (idle_ms >= IDLE_TIMEOUT_MS) {
         uint8_t msg_index = rand() % NUM_IDLE_MESSAGES;
         const char *msg = (const char *)idle_messages[msg_index];
-        strcpy(message, msg);
+        flash(msg, true);
         idle_ms = 0;
     }
 
@@ -279,8 +237,7 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
         msg_timer = current_timer;
     }
     if (boot_msg) { // Show boot message
-        strcpy(message, "HELLO ");
-        strcat(message, X_FIRST_TEXT);
+        snprintf(message, sizeof(message), "HELLO %s", X_FIRST_TEXT);
         boot_msg = false;
     }
     if (message[0] == '\0') {   // No Message
@@ -293,12 +250,11 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
             msg_pause = false;
         }
     } else if (message[0] != '\0') {  // Check if message exists
-        uint8_t led_index = get_led_index_for_char(message[0]);
-        if (led_index >= led_min && led_index < led_max && led_index != NO_LED) {
-            rgb_matrix_set_color(led_index, RGB_RED);
-        }
+        set_keycode_color(char_to_keycode(message[0]), RGB_RED);
         if (msg_timer + MSG_DELAY < timer_read()) {
-            memmove(message, message + 1, strlen(message));  // Remove first char
+            if (message[0] != '\0' && strlen(message) > 0) {
+                memmove(message, message + 1, strlen(message));
+            }
             msg_timer = current_timer;  // Reset timer
             msg_pause = true;
         }
@@ -325,13 +281,15 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
         }
     }
 
+    calculator_rgb_display();
+    
     // Make numlock key red when disabled
-    if (!host_keyboard_led_state().num_lock) {
-        uint8_t numlock_led = g_led_config.matrix_co[7][12]; // Row 1, Col 15 for numlock
-        if (numlock_led >= led_min && numlock_led < led_max && numlock_led != NO_LED) {
-            rgb_matrix_set_color(numlock_led, RGB_RED);
-        }
-    }
+    //if (!host_keyboard_led_state().num_lock) {
+    //    uint8_t numlock_led = g_led_config.matrix_co[7][12]; // Row 1, Col 15 for numlock
+    //    if (numlock_led >= led_min && numlock_led < led_max && numlock_led != NO_LED) {
+    //        rgb_matrix_set_color(numlock_led, RGB_RED);
+    //    }
+    //}
 
     // Make delete key red when not n insert mode
     if (!insert_mode) {
@@ -382,164 +340,41 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     return false;
 }
 
+void keyboard_post_init_kb(void) {
+    // Your one-time startup code goes here
+    // For example:
+    srand(timer_read());
+}
+
 // Handle Keyboard Input
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    idle_ms = 0; // Reset idle timer
+    srand(timer_read() + (keycode * timer_read32()));
+    idle_ms = 0; // Reset idle timer on keypress
 
     // Enable CapsWord on Shift key tap
-    switch (keycode) {
-        case KC_LSFT:  // Left Shift key
-        case KC_RSFT:  // Right Shift key
-            if (record->event.pressed) {
-                // Key is pressed, start the timer
-                shift_pressed = true;
-                shift_timer = timer_read();
-            } else {
-                // Key is released, check the duration
-                shift_pressed = false;
-                if (timer_elapsed(shift_timer) < TAPPING_TERM) {
-                    // Tap detected, toggle Caps Word
-                    caps_word_toggle();
-                }
-            }
-            return true;
+    if (handle_caps_word_shift(keycode, record)) {
+        return true;
     }
 
-    // Handle general keypresses
+    // Handle RGB controls
+    if (handle_rgb_controls(keycode, record, my_layer_rgb)) {
+        return false;
+    }
+    
+    // Handle Macros
+    if (handle_macros(keycode, record)) {
+        return false;
+    }
+        
+    // Handle FN + PG_DN to activate Layer 1
+    if (record->event.pressed && keycode == LAYER1) {
+        lyr1_activated = true;
+        return false;
+    }
+
+    // Track state of INSERT/OVERWRITE mode for LED indicator
     if (record->event.pressed) {
         switch (keycode) {
-            // FN + Number row to switch RGB effects
-            case RGB_01:
-                strcpy(message, "This is a test");
-                my_layer_rgb[0].mode = RGB_MATRIX_SOLID_COLOR;
-                rgb_matrix_mode(RGB_MATRIX_SOLID_COLOR); // Apply the mode immediately
-                return false;
-            case RGB_02:
-                my_layer_rgb[0].mode = RGB_MATRIX_CYCLE_ALL;
-                rgb_matrix_mode(RGB_MATRIX_CYCLE_ALL); // Apply the mode immediately
-                return false;
-            case RGB_03:
-                my_layer_rgb[0].mode = RGB_MATRIX_CYCLE_LEFT_RIGHT;
-                rgb_matrix_mode(RGB_MATRIX_CYCLE_LEFT_RIGHT); // Apply the mode immediately
-                return false;
-            case RGB_04:
-                my_layer_rgb[0].mode = RGB_MATRIX_CYCLE_UP_DOWN;
-                rgb_matrix_mode(RGB_MATRIX_CYCLE_UP_DOWN); // Apply the mode immediately
-                return false;
-            case RGB_05:
-                my_layer_rgb[0].mode = RGB_MATRIX_CYCLE_OUT_IN;
-                rgb_matrix_mode(RGB_MATRIX_CYCLE_OUT_IN); // Apply the mode immediately
-                return false;
-            case RGB_06:
-                my_layer_rgb[0].mode = RGB_MATRIX_CYCLE_OUT_IN_DUAL;
-                rgb_matrix_mode(RGB_MATRIX_CYCLE_OUT_IN_DUAL); // Apply the mode immediately
-                return false;
-            case RGB_07:
-                my_layer_rgb[0].mode = RGB_MATRIX_RAINBOW_MOVING_CHEVRON;
-                rgb_matrix_mode(RGB_MATRIX_RAINBOW_MOVING_CHEVRON); // Apply the mode immediately
-                return false;
-            case RGB_08:
-                my_layer_rgb[0].mode = RGB_MATRIX_CYCLE_PINWHEEL;
-                rgb_matrix_mode(RGB_MATRIX_CYCLE_PINWHEEL); // Apply the mode immediately
-                return false;
-            case RGB_09:
-                my_layer_rgb[0].mode = RGB_MATRIX_CYCLE_SPIRAL;
-                rgb_matrix_mode(RGB_MATRIX_CYCLE_SPIRAL); // Apply the mode immediately
-                return false;
-            case RGB_10:
-                my_layer_rgb[0].mode = RGB_MATRIX_RAINDROPS;
-                rgb_matrix_mode(RGB_MATRIX_RAINDROPS); // Apply the mode immediately
-                return false;
-            case RGB_11:
-                my_layer_rgb[0].mode = RGB_MATRIX_SPLASH;
-                rgb_matrix_mode(RGB_MATRIX_SPLASH); // Apply the mode immediately
-                return false;
-            case RGB_12:
-                my_layer_rgb[0].mode = RGB_MATRIX_MULTISPLASH;
-                rgb_matrix_mode(RGB_MATRIX_MULTISPLASH); // Apply the mode immediately
-                return false;
-
-            // Print Screen / NumLock to cycle through RGB Colors (Use FN+1 for Single Color Mode)
-            case RGB_NEXT:
-                rgb_matrix_increase_hue();
-                my_layer_rgb[0].hsv.h = rgb_matrix_get_hue();
-                return false;
-            case RGB_PREV:
-                rgb_matrix_decrease_hue();
-                my_layer_rgb[0].hsv.h = rgb_matrix_get_hue();
-                return false;
-
-            // FN + Mute / Volume Down / Volume Up to adjust RGB Brightness
-            case RGB_TOG:
-                my_layer_rgb[0].enable = !my_layer_rgb[0].enable;
-                rgb_matrix_toggle();
-                return false;
-            case RGB_VAD:
-                rgb_matrix_decrease_val();
-                my_layer_rgb[0].hsv.v = rgb_matrix_get_val();
-                rgb_matrix_sethsv(my_layer_rgb[0].hsv.h, my_layer_rgb[0].hsv.s, my_layer_rgb[0].hsv.v);
-                return false;
-            case RGB_VAI:
-                rgb_matrix_increase_val();
-                my_layer_rgb[0].hsv.v = rgb_matrix_get_val();
-                rgb_matrix_sethsv(my_layer_rgb[0].hsv.h, my_layer_rgb[0].hsv.s, my_layer_rgb[0].hsv.v);
-                return false;
-
-            // FN + /, *, - to adjust RGB Color Saturation
-            case RGB_SAT:
-                if (my_layer_rgb[0].hsv.s == 255) {
-                    my_layer_rgb[0].hsv.s = 0;
-                } else {
-                    my_layer_rgb[0].hsv.s = 255;
-                }
-                rgb_matrix_sethsv(my_layer_rgb[0].hsv.h, my_layer_rgb[0].hsv.s, my_layer_rgb[0].hsv.v);
-                return false;
-            case RGB_SATI:
-                rgb_matrix_increase_sat();
-                my_layer_rgb[0].hsv.s = rgb_matrix_get_sat();
-                rgb_matrix_sethsv(my_layer_rgb[0].hsv.h, my_layer_rgb[0].hsv.s, my_layer_rgb[0].hsv.v);
-                return false;
-            case RGB_SATD:
-                rgb_matrix_decrease_sat();
-                my_layer_rgb[0].hsv.s = rgb_matrix_get_sat();
-                rgb_matrix_sethsv(my_layer_rgb[0].hsv.h, my_layer_rgb[0].hsv.s, my_layer_rgb[0].hsv.v);
-                return false;
-
-            // FN +/Enter to adjust RGB Animation Speed
-            case RGB_SPDI:
-                rgb_matrix_increase_speed();
-                my_layer_rgb[0].speed = rgb_matrix_get_speed();
-                return false;
-            case RGB_SPDD:
-                rgb_matrix_decrease_speed();
-                my_layer_rgb[0].speed = rgb_matrix_get_speed();
-                return false;
-
-            // Handle FN + PG_DN to activate Layer 1
-            case LAYER1:
-                lyr1_activated = true;
-                return false;
-
-            // Handle Static Macros
-            // X_NAME, X_FIRST, X_LAST, X_ADDR, X_EMAIL, X_PHONE
-            case X_NAME:
-                SEND_STRING(X_NAME_TEXT);
-                return false;
-            case X_FIRST:
-                SEND_STRING(X_FIRST_TEXT);
-                return false;
-            case X_LAST:
-                SEND_STRING(X_LAST_TEXT);
-                return false;
-            case X_ADDR:
-                SEND_STRING(X_ADDR_TEXT);
-                return false;
-            case X_EMAIL:
-                SEND_STRING(X_EMAIL_TEXT);
-                return false;
-            case X_PHONE:
-                SEND_STRING(X_PHONE_TEXT);
-                return false;
             case KC_INS:
                 insert_mode = !insert_mode;
                 return true;
@@ -550,5 +385,11 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 return true;
         }
     }
+
+    // Numpad Calculator
+    if (!handle_calculator_input(keycode, record)) {
+        return false;    
+    }
+
     return true;
 }
