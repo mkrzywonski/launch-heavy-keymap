@@ -35,7 +35,7 @@ Shinethrough keycaps from [FKcustom](https://fkcaps.com/custom/2S5MWD/)
 - Num-Lock to enable/disable calculator mode
 - Print Screen to toggle typing/stealth input
 - Current result will flash on number row
-- Shift-Enter to type result
+- Shift-Enter to type result to computer
 - Shift-/ for modulus
 - Shift-* for exponents (defaults to ^2)
 - Shift-- for root (defaults to square root)
