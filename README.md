@@ -28,7 +28,7 @@ Shinethrough keycaps from [FKcustom](https://fkcaps.com/custom/2S5MWD/)
 - Adjust RGB lighting controls on num pad / media keys
 - Macro record
 - Static macro keys
-- Calculator Binary/Octal/Decimal/Hexadecimal
+- Calculator Binary/Octal/Decimal/Hexadecimal/Pi
 
 ### Calculator Mode
 ![Calculator](./calculator.png)
