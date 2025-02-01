@@ -30,7 +30,23 @@ Shinethrough keycaps from [FKcustom](https://fkcaps.com/custom/2S5MWD/)
 - Static macro keys
 - Calculator Binary/Octal/Decimal/Hexadecimal/Pi
 
-### Calculator Mode
+## Macros
+### Dynamic Macro Recording
+- Fn-Macro to start recording macro
+- Type keys to record
+- Fn-Macro to stop recording
+- Press macro key to play dynamic macro
+
+### Static Macros
+- Copy static_macros_example.h to static_macros.h when building firmware
+- Edit static_macros.h to define macro values
+- Fn-E to type email address
+- Fn-A to type address
+- Fn-F to type first name
+- Fn-L to type last name
+- Fn-N to type full name
+
+## Calculator Mode
 ![Calculator](./calculator.png)
 - Num-Lock to enable/disable calculator mode
 - Print Screen to toggle typing/stealth input
@@ -51,4 +67,6 @@ Shinethrough keycaps from [FKcustom](https://fkcaps.com/custom/2S5MWD/)
 To build this keymap:
 
 ```bash
+cp static_macros_example.h static_macros.h
+nano static_macros.h
 qmk compile -kb system76/launch_heavy_3 -km mkrzywonski
