@@ -2,7 +2,7 @@
 #include QMK_KEYBOARD_H
 #include "custom_keycodes.h"
 
-bool handle_caps_word_shift(uint16_t keycode, keyrecord_t *record);
+bool handle_shift_keys(uint16_t keycode, keyrecord_t *record);
 bool handle_rgb_controls(uint16_t keycode, keyrecord_t *record, rgb_config_t *layer_rgb);
 bool handle_macros(uint16_t keycode, keyrecord_t *record);
 

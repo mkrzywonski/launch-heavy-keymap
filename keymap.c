@@ -9,22 +9,24 @@
 #include <stdio.h>
 
 #define ______ KC_TRNS
-#define MSG_DELAY 500 // half a second per character
+#define MSG_DELAY 300 // milliseconds per character
 #define IDLE_TIMEOUT_MS 900000 // 15 minutes in milliseconds
 
 static bool lyr1_activated = false;
 static bool insert_mode = true;
-static bool msg_pause = false;
 static int32_t msg_timer = 0;
 static bool boot_msg = true;
 static uint32_t idle_ms = 0;
 static uint16_t last_timer = 0;
 char message[256];
+enum flash_states { OFF, RISE, ON, FALL, PAUSE };
+static enum flash_states flash_state = OFF;
 
 enum layers{ First, Second, Third, Fourth };
 
 const key_override_t backspace_override = ko_make_basic(MOD_MASK_SHIFT, KC_BSPC, KC_DEL);
 const key_override_t delete_override = ko_make_basic(MOD_MASK_SHIFT, KC_DEL, KC_INS);
+
 const key_override_t **key_overrides = (const key_override_t *[]){
     &backspace_override,
     &delete_override,
@@ -56,8 +58,8 @@ ________________________________________________________________________________
 */
 
   [First] = LAYOUT(
-    KC_ESC,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  KC_DEL,       KC_HOME,  KC_PSCR, KC_MUTE, KC_VOLD, KC_VOLU,
-    KC_GRV,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,    KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_MINS, KC_EQL,  KC_BSPC,      KC_PGUP,  KC_NUM,  KC_PSLS, KC_PAST, KC_PMNS,
+    LT(1,KC_ESC), KC_F1, KC_F2, KC_F3,  KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  KC_BSPC,      KC_HOME,  KC_PSCR, KC_MUTE, KC_VOLD, KC_VOLU,
+    KC_GRV,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,    KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_MINS, KC_EQL,  KC_DEL,       KC_PGUP,  KC_NUM,  KC_PSLS, KC_PAST, KC_PMNS,
         KC_TAB,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,    KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    KC_LBRC, KC_RBRC, KC_BSLS,  KC_PGDN,  KC_P7,   KC_P8,   KC_P9,   KC_PPLS,
           KC_CAPS, KC_A,    KC_S,    KC_D,    KC_F,    KC_G,    KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN, KC_QUOT,    KC_ENT,       KC_END,   KC_P4,   KC_P5,   KC_P6,
           KC_LSFT,     KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    KC_N,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH,    KC_RSFT,    KC_UP,           KC_P1,   KC_P2,   KC_P3,   KC_PENT,
@@ -73,7 +75,7 @@ ________________________________________________________________________________
 |        | COLOR  | ALL    | RIGHT  | DOWN   | IN     | IN DUAL| CHAVRON| WHEEL  |        | DROPS  |        | SPLASH |    DEL     ||   3    ||  HUE-  | TOGGLE |    -   |    +   |
 |________|________|________|________|________|________|________|________|________|________|________|________|________|____________||________||________|________|________|________|
 |            |        |        |        |        |        |        |        |        |        |        |        |        |        || LAYER  ||        |        |        |        |
-|            |        |        | X_EMAIL|        | X_PHONE|        |        |        | C_OCT  |  C_PI  |        |        |        ||   2    ||        |        |        | RGB    |
+|            |        |        | X_EMAIL|        | X_PHONE|        |        |KC_IDLE| C_OCT  |  C_PI  |        |        |        ||   2    ||        |        |        | RGB    |
 |____________|________|________|________|________|________|________|________|________|________|________|________|________|________||________||________|________|________| EFFECT |
   |            |        |        |        |        |        |        |        |        |        |        |        |            |   | LAYER  ||        |        |        | SPEED  |
   |            | X_ADDR |        | C_DEC  | X_FIRST|        | C_HEX  |        |        | X_LAST |        |        |            |   |   1    || C_HEXD | C_HEXE | C_HEXF |   +    |
@@ -89,16 +91,16 @@ ________________________________________________________________________________
   */
 
   [Second] = LAYOUT(
-    QK_BOOT, KC_F13,  KC_F14,  KC_F15,  KC_F16,  KC_F17,  KC_F18,  KC_F19,  KC_F20,  KC_F21,  KC_F22,  KC_F23,  KC_F24,  KC_INS,       TO(3),    RGB_PREV, RGB_TOG, RGB_VAD, RGB_VAI,
-    _______, RGB_01,  RGB_02,  RGB_03,  RGB_04,  RGB_05,  RGB_06,  RGB_07,  RGB_08,  RGB_09,  RGB_10,  RGB_11,  RGB_12,  KC_DEL,       TO(2),    RGB_NEXT, RGB_SAT, RGB_SATD, RGB_SATI,
-        _______, _______, _______, X_EMAIL, _______, X_PHONE,  _______, _______, _______, C_OCT,   C_PI,    _______, _______, _______, LAYER1,    _______, _______, _______, RGB_SPDI,
+    QK_BOOT, KC_F13,  KC_F14,  KC_F15,  KC_F16,  KC_F17,  KC_F18,  KC_F19,  KC_F20,  KC_F21,  KC_F22,  KC_F23,  KC_F24,  KC_DEL,       TO(3),    RGB_PREV, RGB_TOG, RGB_VAD, RGB_VAI,
+    _______, RGB_01,  RGB_02,  RGB_03,  RGB_04,  RGB_05,  RGB_06,  RGB_07,  RGB_08,  RGB_09,  RGB_10,  RGB_11,  RGB_12,  KC_INS,       TO(2),    RGB_NEXT, RGB_SAT, RGB_SATD, RGB_SATI,
+        _______, _______, _______, X_EMAIL, _______, X_PHONE,  _______, _______, KC_IDLE, C_OCT,   C_PI,    _______, _______, _______, LAYER1,    _______, _______, _______, RGB_SPDI,
           _______, X_ADDR,  _______, C_DEC,   X_FIRST, _______, C_HEX,   _______, _______,   X_LAST,  _______, _______,    _______,    TO(0),    C_HEXD,  C_HEXE,  C_HEXF,
-          KC_CAPS,     _______, _______, C_CLEAR, _______, C_BIN,   X_NAME, _______, _______, _______, _______,    KC_CAPS,  _______,            C_HEXA,  C_HEXB,  C_HEXC,  RGB_SPDD,
-          _______, _______, _______, _______,     _______,          _______,    _______,   DM_REC1,  _______,        _______, _______, _______,         _______,    _______
+          KC_CAPS,     _______, _______, C_CLEAR, _______, C_BIN,   X_NAME, _______, _______, _______, _______,    KC_CAPS,  DT_UP,              C_HEXA,  C_HEXB,  C_HEXC,  RGB_SPDD,
+          _______, _______, _______, _______,     _______,          _______,    _______,   DM_REC1,  _______,        _______, DT_DOWN, DT_PRNT,         _______,    _______
   ),
 
   [Third] = LAYOUT(
-    KC_ESC,  _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,      _______,  _______, _______, _______, _______,
+    LT(1,KC_ESC), _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,      _______,  _______, _______, _______, _______,
     _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,      _______,  KC_SCRL, _______, _______, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,  _______,  _______, _______, _______, _______,
           _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,    _______,      TO(0),    _______, _______, _______,
@@ -108,65 +110,13 @@ ________________________________________________________________________________
 
   // Calculator
   [Fourth] = LAYOUT(
-    KC_ESC,  _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,      _______,  _______, _______, _______, _______,
+    LT(1,KC_ESC), _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,      _______,  _______, _______, _______, _______,
     _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,      _______,  KC_SCRL, _______, _______, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,  _______,  _______, _______, _______, _______,
           _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,    _______,      TO(0),    _______, _______, _______,
           _______,     _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,    _______,  _______,           _______, _______, _______, _______,
           _______, _______, _______, _______,     _______,          _______,    _______,   _______,  _______,        _______, _______, _______,        _______,    _______
   ),
-};
-
-// Define RGB backlight defaults for each layer
-rgb_config_t my_layer_rgb[DYNAMIC_KEYMAP_LAYER_COUNT] = {
-    // Layer 0 (Base Layer)
-    {
-        .enable = 1,
-        .mode = RGB_MATRIX_DEFAULT_MODE, // See config.h to change defaults
-        .hsv = {
-            .h = RGB_MATRIX_DEFAULT_HUE,
-            .s = RGB_MATRIX_DEFAULT_SAT,
-            .v = RGB_MATRIX_DEFAULT_VAL,
-        },
-        .speed = RGB_MATRIX_DEFAULT_SPD,
-        .flags = LED_FLAG_KEYLIGHT,
-    },
-    // Layer 1 (FN Layer) Red
-    {
-        .enable = 1,
-        .mode = RGB_MATRIX_CUSTOM_raw_rgb,
-        .hsv = {
-            .h = HSV_RED,
-            .s = 255,
-            .v = RGB_MATRIX_MAXIMUM_BRIGHTNESS,
-        },
-        .speed = RGB_MATRIX_DEFAULT_SPD,
-        .flags = LED_FLAG_KEYLIGHT,
-    },
-    // Layer 2 (Unused) Green
-    {
-        .enable = 1,
-        .mode = RGB_MATRIX_CUSTOM_raw_rgb,
-        .hsv = {
-            .h = HSV_GREEN,
-            .s = 255,
-            .v = RGB_MATRIX_MAXIMUM_BRIGHTNESS,
-        },
-        .speed = RGB_MATRIX_DEFAULT_SPD,
-        .flags = LED_FLAG_KEYLIGHT,
-    },
-    // Layer 3 (Unused) Blue
-    {
-        .enable = 1,
-        .mode = RGB_MATRIX_CUSTOM_raw_rgb,
-        .hsv = {
-            .h = HSV_BLUE,
-            .s = 0,
-            .v = RGB_MATRIX_MAXIMUM_BRIGHTNESS,
-        },
-        .speed = RGB_MATRIX_DEFAULT_SPD,
-        .flags = LED_FLAG_KEYLIGHT,
-    },
 };
 
 // Handle layer changes
@@ -215,6 +165,7 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     uint16_t current_timer = timer_read();
     uint8_t layer = get_highest_layer(layer_state);
 
+
     // Check for timer rollover and update idle counter
     if (current_timer < last_timer) {
         idle_ms += (65535 - last_timer + current_timer);
@@ -240,63 +191,76 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
         snprintf(message, sizeof(message), "HELLO %s", X_FIRST_TEXT);
         boot_msg = false;
     }
-    if (message[0] == '\0') {   // No Message
-        msg_timer = current_timer;
-        msg_pause = false;
-    }
-    if (msg_pause){ // Turn off LED between letters
-        if (msg_timer + (MSG_DELAY / 2) < timer_read()) {
-            msg_timer = current_timer;  // Reset timer
-            msg_pause = false;
-        }
-    } else if (message[0] != '\0') {  // Check if message exists
-        set_keycode_color(char_to_keycode(message[0]), RGB_RED);
-        if (msg_timer + MSG_DELAY < timer_read()) {
-            if (message[0] != '\0' && strlen(message) > 0) {
-                memmove(message, message + 1, strlen(message));
-            }
-            msg_timer = current_timer;  // Reset timer
-            msg_pause = true;
+    if (message[0] == '\0') {   // No Message Mike
+        flash_state = OFF;
+    } else {                    // Display Message
+        switch (flash_state) {
+            case OFF:   // Not displaying anything yet
+                msg_timer = current_timer;  // Reset timer
+                flash_state = RISE;
+                break;
+            case RISE:
+                if (timer_elapsed(msg_timer) < (MSG_DELAY / 2)) {
+                    uint16_t r = (timer_elapsed(msg_timer) * 255) / (MSG_DELAY / 2);
+                    uint16_t g = 0;
+                    uint16_t b = 0;
+                    set_keycode_color(char_to_keycode(message[0]), rgb(r, g, b));
+                } else {
+                    flash_state = ON;
+                    msg_timer = current_timer;  // Reset timer
+                }
+                break;
+            case ON:
+                if (timer_elapsed(msg_timer) < MSG_DELAY) {
+                    uint16_t r = 255;
+                    uint16_t g = 0;
+                    uint16_t b = 0;
+                    set_keycode_color(char_to_keycode(message[0]), rgb(r, g, b));
+                } else {
+                    flash_state = FALL;
+                    msg_timer = current_timer;  // Reset timer
+                }
+                break;
+            case FALL:
+                if (timer_elapsed(msg_timer) < (MSG_DELAY / 2)) {
+                    uint16_t r = 255 - ((timer_elapsed(msg_timer) * 255) / (MSG_DELAY / 2));
+                    uint16_t g = 0;
+                    uint16_t b = 0;
+                    set_keycode_color(char_to_keycode(message[0]), rgb(r, g, b));
+                } else {
+                    flash_state = PAUSE;
+                    msg_timer = current_timer;  // Reset timer
+                    if (message[0] != '\0' && strlen(message) > 0) {
+                        memmove(message, message + 1, strlen(message));
+                    }                    
+                }
+                break;
+            case PAUSE:
+                if (timer_elapsed(msg_timer) > (MSG_DELAY / 3)) {
+                    flash_state = OFF;
+                }
+                break;
         }
     }
 
     // Add caps lock indicator
     if (host_keyboard_led_state().caps_lock) {
-        uint8_t caps_led_index = g_led_config.matrix_co[3][0]; // Row 3, Col 0 for caps lock
-        if (caps_led_index >= led_min && caps_led_index < led_max && caps_led_index != NO_LED) {
-            rgb_matrix_set_color(caps_led_index, RGB_RED); // Set caps lock key to red
-        }
+        set_keycode_color(KC_CAPS, rgb(RGB_RED));
+        set_keycode_color(KC_LSFT, rgb(RGB_RED));
+        set_keycode_color(KC_RSFT, rgb(RGB_RED));
     }
 
     // Add caps word indicator for shift keys
     if (is_caps_word_on()) {
-        uint8_t left_shift_led = g_led_config.matrix_co[4][0];  // Row 4, Col 0 for left shift
-        uint8_t right_shift_led = g_led_config.matrix_co[4][11]; // Row 4, Col 11 for right shift
-
-        if (left_shift_led >= led_min && left_shift_led < led_max && left_shift_led != NO_LED) {
-            rgb_matrix_set_color(left_shift_led, RGB_RED);
-        }
-        if (right_shift_led >= led_min && right_shift_led < led_max && right_shift_led != NO_LED) {
-            rgb_matrix_set_color(right_shift_led, RGB_RED);
-        }
+        set_keycode_color(KC_LSFT, rgb(RGB_GOLD));
+        set_keycode_color(KC_RSFT, rgb(RGB_GOLD));
     }
 
     calculator_rgb_display();
-    
-    // Make numlock key red when disabled
-    //if (!host_keyboard_led_state().num_lock) {
-    //    uint8_t numlock_led = g_led_config.matrix_co[7][12]; // Row 1, Col 15 for numlock
-    //    if (numlock_led >= led_min && numlock_led < led_max && numlock_led != NO_LED) {
-    //        rgb_matrix_set_color(numlock_led, RGB_RED);
-    //    }
-    //}
 
     // Make delete key red when not n insert mode
     if (!insert_mode) {
-        uint8_t del_led = g_led_config.matrix_co[0][13]; // Position K0D in matrix for DEL key
-        if (del_led >= led_min && del_led < led_max && del_led != NO_LED) {
-            rgb_matrix_set_color(del_led, RGB_RED);
-        }
+        set_keycode_color(KC_DEL, rgb(RGB_RED));
     }
 
     if (layer > 0 && my_layer_rgb[layer].enable) {
@@ -351,8 +315,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     srand(timer_read() + (keycode * timer_read32()));
     idle_ms = 0; // Reset idle timer on keypress
 
-    // Enable CapsWord on Shift key tap
-    if (handle_caps_word_shift(keycode, record)) {
+    // Enable Caps Word / Caps Lock
+    if (handle_shift_keys(keycode, record)) {
         return true;
     }
 
@@ -389,6 +353,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     // Numpad Calculator
     if (!handle_calculator_input(keycode, record)) {
         return false;    
+    }
+
+    if (keycode == KC_IDLE) {
+        if(record->event.pressed) {
+            // Flash idle-timer message
+            idle_ms = IDLE_TIMEOUT_MS;
+        }
+        return false;
     }
 
     return true;

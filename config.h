@@ -1,6 +1,8 @@
 #pragma once
 #include "../../config.h"
 
+#define TAPPING_TERM 200    // Time in milliseconds (200ms is a common default)
+
 #undef RGB_MATRIX_DEFAULT_MODE
 #undef RGB_MATRIX_DEFAULT_HUE
 #undef RGB_MATRIX_DEFAULT_SAT

@@ -39,5 +39,6 @@ enum custom_keycodes {
     C_HEXD,
     C_HEXE,
     C_HEXF,
-    C_PI
+    C_PI,
+    KC_IDLE
 };

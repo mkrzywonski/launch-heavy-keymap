@@ -475,92 +475,90 @@ double perform_operation(double result, char operator, double operand) {
             }
             break;
     }
+    if (isinf(result) || fabs(result) > pow(2, 64)) {
+        result = 0;
+        if (calculator_print_active) SEND_STRING(" ERROR: Overflow");
+        flash("OVERFLOW", false);
+    }
     return result;
 }
 
-uint32_t rgb_to_int(uint8_t r, uint8_t g, uint8_t b) {
-    return (uint32_t)((r << 16) | (g << 8) | b);
-}
 
-void set_key_rgb(uint16_t keycode, uint32_t rgb) {
-    uint8_t r = (rgb >> 16) & 0xFF;
-    uint8_t g = (rgb >> 8) & 0xFF;
-    uint8_t b = rgb & 0xFF;
-    set_keycode_color(keycode, r, g, b);
-}
+
+
 
 void calculator_rgb_display(void) {
 
     // Default colors (direct assignment)
-    uint32_t calc_key_color = rgb_to_int(RGB_BLUE);
-    uint32_t calc_key_valid_color = rgb_to_int(RGB_GREEN);
-    uint32_t calc_key_error_color = rgb_to_int(RGB_RED);
-    uint32_t calc_hex_key_color = rgb_to_int(RGB_PINK);
+    uint32_t calc_key_color = rgb(RGB_BLUE);
+    uint32_t calc_key_valid_color = rgb(RGB_GREEN);
+    uint32_t calc_key_error_color = rgb(RGB_RED);
+    uint32_t calc_hex_key_color = rgb(RGB_PINK);
 
     // If clear status is active, override color
     if (clear_calc_status_active && timer_elapsed(clear_calc_status_timer) < 500) {
-        calc_key_color = rgb_to_int(RGB_RED);
+        calc_key_color = rgb(RGB_RED);
     } else {
         clear_calc_status_active = false;
     }
 
     // Function as a calculator when Num Lock is disabled
     if (!host_keyboard_led_state().num_lock) {
-        set_key_rgb(KC_NUM, calc_key_color);
-        set_key_rgb(KC_PPLS, calc_key_color);
-        set_key_rgb(KC_PMNS, calc_key_color);
-        set_key_rgb(KC_PAST, calc_key_color);
-        set_key_rgb(KC_PSLS, calc_key_color);
-        set_key_rgb(KC_PENT, calc_key_color);
+        set_keycode_color(KC_NUM, calc_key_color);
+        set_keycode_color(KC_PPLS, calc_key_color);
+        set_keycode_color(KC_PMNS, calc_key_color);
+        set_keycode_color(KC_PAST, calc_key_color);
+        set_keycode_color(KC_PSLS, calc_key_color);
+        set_keycode_color(KC_PENT, calc_key_color);
 
         if (calculator_print_active) {
-            set_keycode_color(KC_PSCR, RGB_RED);
+            set_keycode_color(KC_PSCR, rgb(RGB_RED));
         } else {
-            set_key_rgb(KC_PSCR, calc_key_color);
+            set_keycode_color(KC_PSCR, calc_key_color);
         }
 
         // Valid digit keys for all bases
-        set_key_rgb(KC_KP_0, calc_key_color);
-        set_key_rgb(KC_KP_1, calc_key_color);
+        set_keycode_color(KC_KP_0, calc_key_color);
+        set_keycode_color(KC_KP_1, calc_key_color);
 
         // Octal, Decimal, Hexadecimal
         if (calculator_base == 8 || calculator_base == 10 || calculator_base == 16) {
-            set_key_rgb(KC_KP_2, calc_key_color);
-            set_key_rgb(KC_KP_3, calc_key_color);
-            set_key_rgb(KC_KP_4, calc_key_color);
-            set_key_rgb(KC_KP_5, calc_key_color);
-            set_key_rgb(KC_KP_6, calc_key_color);
-            set_key_rgb(KC_KP_7, calc_key_color);
+            set_keycode_color(KC_KP_2, calc_key_color);
+            set_keycode_color(KC_KP_3, calc_key_color);
+            set_keycode_color(KC_KP_4, calc_key_color);
+            set_keycode_color(KC_KP_5, calc_key_color);
+            set_keycode_color(KC_KP_6, calc_key_color);
+            set_keycode_color(KC_KP_7, calc_key_color);
         }
 
         // Decimal, Hexadecimal
         if (calculator_base == 10 || calculator_base == 16) {
-            set_key_rgb(KC_KP_8, calc_key_color);
-            set_key_rgb(KC_KP_9, calc_key_color);
+            set_keycode_color(KC_KP_8, calc_key_color);
+            set_keycode_color(KC_KP_9, calc_key_color);
         }
 
         // Hexadecimal - Use FN + 1 - 6 for A - F
         if (calculator_base == 16) {
-            set_key_rgb(KC_KP_1, calc_hex_key_color);
-            set_key_rgb(KC_KP_2, calc_hex_key_color);
-            set_key_rgb(KC_KP_3, calc_hex_key_color);
-            set_key_rgb(KC_KP_4, calc_hex_key_color);
-            set_key_rgb(KC_KP_5, calc_hex_key_color);
-            set_key_rgb(KC_KP_6, calc_hex_key_color);
+            set_keycode_color(KC_KP_1, calc_hex_key_color);
+            set_keycode_color(KC_KP_2, calc_hex_key_color);
+            set_keycode_color(KC_KP_3, calc_hex_key_color);
+            set_keycode_color(KC_KP_4, calc_hex_key_color);
+            set_keycode_color(KC_KP_5, calc_hex_key_color);
+            set_keycode_color(KC_KP_6, calc_hex_key_color);
         }
 
         // Decimal
         if (calculator_base == 10) {
-            set_key_rgb(KC_PDOT, calc_key_color);
+            set_keycode_color(KC_PDOT, calc_key_color);
         }
 
         // If last key status is active, override color
         if (last_key_status_active && timer_elapsed(last_key_status_timer) < 500) {
             if (calculator_last_keycode != KC_NO) {
                 if (calculator_last_keycode_valid) {
-                    set_key_rgb(calculator_last_keycode, calc_key_valid_color);
+                    set_keycode_color(calculator_last_keycode, calc_key_valid_color);
                 } else {
-                    set_key_rgb(calculator_last_keycode, calc_key_error_color);
+                    set_keycode_color(calculator_last_keycode, calc_key_error_color);
                 }
             }            
         } else {

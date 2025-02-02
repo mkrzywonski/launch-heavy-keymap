@@ -16,9 +16,15 @@ void flash(const char* text, bool append) {
     }
 }
 
+uint32_t rgb(uint8_t r, uint8_t g, uint8_t b) {
+    return (uint32_t)((r << 16) | (g << 8) | b);
+}
 
+void set_keycode_color(uint16_t keycode, uint32_t rgb) {
+    uint8_t r = (rgb >> 16) & 0xFF;
+    uint8_t g = (rgb >> 8) & 0xFF;
+    uint8_t b = rgb & 0xFF;
 
-void set_keycode_color(uint16_t keycode, uint8_t r, uint8_t g, uint8_t b) {
     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
         for (uint8_t col = 0; col < MATRIX_COLS; col++) {
             if (keymap_key_to_keycode(0, (keypos_t){.row = row, .col = col}) == keycode) {
@@ -64,3 +70,55 @@ uint16_t char_to_keycode(char c) {
         default: return KC_NO;
     }
 }
+
+// Define RGB backlight defaults for each layer
+rgb_config_t my_layer_rgb[DYNAMIC_KEYMAP_LAYER_COUNT] = {
+    // Layer 0 (Base Layer)
+    {
+        .enable = 1,
+        .mode = RGB_MATRIX_DEFAULT_MODE, // See config.h to change defaults
+        .hsv = {
+            .h = RGB_MATRIX_DEFAULT_HUE,
+            .s = RGB_MATRIX_DEFAULT_SAT,
+            .v = RGB_MATRIX_DEFAULT_VAL,
+        },
+        .speed = RGB_MATRIX_DEFAULT_SPD,
+        .flags = LED_FLAG_KEYLIGHT,
+    },
+    // Layer 1 (FN Layer) Red
+    {
+        .enable = 1,
+        .mode = RGB_MATRIX_CUSTOM_raw_rgb,
+        .hsv = {
+            .h = HSV_RED,
+            .s = 255,
+            .v = RGB_MATRIX_MAXIMUM_BRIGHTNESS,
+        },
+        .speed = RGB_MATRIX_DEFAULT_SPD,
+        .flags = LED_FLAG_KEYLIGHT,
+    },
+    // Layer 2 (Unused) Green
+    {
+        .enable = 1,
+        .mode = RGB_MATRIX_CUSTOM_raw_rgb,
+        .hsv = {
+            .h = HSV_GREEN,
+            .s = 255,
+            .v = RGB_MATRIX_MAXIMUM_BRIGHTNESS,
+        },
+        .speed = RGB_MATRIX_DEFAULT_SPD,
+        .flags = LED_FLAG_KEYLIGHT,
+    },
+    // Layer 3 (Unused) Blue
+    {
+        .enable = 1,
+        .mode = RGB_MATRIX_CUSTOM_raw_rgb,
+        .hsv = {
+            .h = HSV_BLUE,
+            .s = 0,
+            .v = RGB_MATRIX_MAXIMUM_BRIGHTNESS,
+        },
+        .speed = RGB_MATRIX_DEFAULT_SPD,
+        .flags = LED_FLAG_KEYLIGHT,
+    },
+};

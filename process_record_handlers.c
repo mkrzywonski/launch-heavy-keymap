@@ -5,21 +5,32 @@
 #include "custom_keycodes.h"
 
 extern const rgb_mode_map rgb_modes[];
+static bool shift_no_keys_pressed;
 
-static uint16_t shift_timer;
-
-bool handle_caps_word_shift(uint16_t keycode, keyrecord_t *record) {
+// Tap Shift to toggle Caps Word
+// CTRL + Shift = Caps Lock
+bool handle_shift_keys(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
         case KC_LSFT:  // Left Shift key
         case KC_RSFT:  // Right Shift key
-            if (record->event.pressed) {
-                shift_timer = timer_read();
-            } else {
-                if (timer_elapsed(shift_timer) < TAPPING_TERM) {
+            if (record->event.pressed) {        // Key pressed
+                if (get_mods() & MOD_MASK_CTRL) {
+                    // CTRL + Shift = Caps Lock
+                    clear_mods();
+                    tap_code(KC_CAPS);
+                } else {
+                    // Watch for other keys being pressed
+                    shift_no_keys_pressed = true;
+                }
+            } else {                            // Key released
+                if (shift_no_keys_pressed) {
+                    // Tap Shift to toggle Caps Word
                     caps_word_toggle();
                 }
             }
             return true;
+        default:
+            shift_no_keys_pressed = false;
     }
     return false;
 }
