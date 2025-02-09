@@ -9,6 +9,7 @@ This is my personal keymap for the System76 Launch Heavy 3 keyboard.
 Shinethrough keycaps from [FKcustom](https://fkcaps.com/custom/EQU8WA)
 - Standard QWERTY layout
 - Modifier keys in ergonomic positions
+- Tap Esc key for Escape, hold for Fn
 - Macro play keys
 - Layer toggle keys
 - Tap both shift keys for Caps-Word
