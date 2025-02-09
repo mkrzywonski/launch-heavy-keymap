@@ -87,12 +87,14 @@ bool handle_rgb_controls(uint16_t keycode, keyrecord_t *record, rgb_config_t *la
                 return true;
             // Animation speed controls
             case RGB_SPDI:  // FN + Numpad + to increase animation speed
-                rgb_matrix_increase_speed();
-                layer_rgb[0].speed = rgb_matrix_get_speed();
+                if (layer_rgb[0].speed + 10 > layer_rgb[0].speed) {
+                    layer_rgb[0].speed += 10;
+                }
                 return true;
             case RGB_SPDD:  // FN + Numpad Enter to decrease animation speed
-                rgb_matrix_decrease_speed();
-                layer_rgb[0].speed = rgb_matrix_get_speed();
+                if (layer_rgb[0].speed - 10 < layer_rgb[0].speed) {
+                    layer_rgb[0].speed -= 10;
+                }
                 return true;
         }
     }
