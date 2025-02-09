@@ -40,5 +40,6 @@ enum custom_keycodes {
     C_HEXE,
     C_HEXF,
     C_PI,
-    KC_IDLE
+    KC_IDLE,
+    KC_RPT
 };

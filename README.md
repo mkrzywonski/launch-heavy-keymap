@@ -2,33 +2,33 @@
 
 This is my personal keymap for the System76 Launch Heavy 3 keyboard.
 
-## Features
-
-- Base QWERTY layer
-- Function layer with RGB effects and controls
-- Numpad calculator mode
-
 ## Layers
 
 ### Layer 0: Base
 ![Layer 0](./layout.png)
-Shinethrough keycaps from [FKcustom](https://fkcaps.com/custom/2S5MWD/)
+Shinethrough keycaps from [FKcustom](https://fkcaps.com/custom/EQU8WA)
 - Standard QWERTY layout
 - Modifier keys in ergonomic positions
-- Macro play key
+- Macro play keys
 - Layer toggle keys
-- Tap shift keys for Caps-Word
+- Tap both shift keys for Caps-Word
 - Shift-Bcksp for Delete
 - Shift-Delete for Insert
 
 ### Layer 1: Function Keys
 ![Layer 1](./fn_layer.png)
 - F12-F24 keys
+- Layer selection on nav cluster
 - Select RGB Effects on number row
 - Adjust RGB lighting controls on num pad / media keys
 - Macro record
 - Static macro keys
 - Calculator Binary/Octal/Decimal/Hexadecimal/Pi
+- Fn + R to repeat character
+  - Fn + R
+  - Enter repeat count on numpad
+  - Type character to repeat
+- Fn + I to play random idle-timeout message
 
 ## Macros
 ### Dynamic Macro Recording
@@ -55,7 +55,7 @@ Shinethrough keycaps from [FKcustom](https://fkcaps.com/custom/2S5MWD/)
 - Shift-/ for modulus
 - Shift-* for exponents (defaults to ^2)
 - Shift-- for root (defaults to square root)
-- Shift-0 to clear entry
+- Shift-0 to clear entry (or Fn + C)
 - Shift-0 again to clear all
 - Fn-D for Decimal
 - Fn-O for Octal

@@ -483,10 +483,6 @@ double perform_operation(double result, char operator, double operand) {
     return result;
 }
 
-
-
-
-
 void calculator_rgb_display(void) {
 
     // Default colors (direct assignment)

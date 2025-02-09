@@ -5,7 +5,8 @@
 #include "custom_keycodes.h"
 
 extern const rgb_mode_map rgb_modes[];
-static bool shift_no_keys_pressed;
+bool left_shift_pressed;
+bool right_shift_pressed;
 
 // Tap Shift to toggle Caps Word
 // CTRL + Shift = Caps Lock
@@ -13,24 +14,22 @@ bool handle_shift_keys(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
         case KC_LSFT:  // Left Shift key
         case KC_RSFT:  // Right Shift key
+            if (keycode == KC_LSFT) {
+                left_shift_pressed = record->event.pressed;
+            } else {
+                right_shift_pressed = record->event.pressed;
+            }
             if (record->event.pressed) {        // Key pressed
                 if (get_mods() & MOD_MASK_CTRL) {
                     // CTRL + Shift = Caps Lock
                     clear_mods();
                     tap_code(KC_CAPS);
-                } else {
-                    // Watch for other keys being pressed
-                    shift_no_keys_pressed = true;
-                }
-            } else {                            // Key released
-                if (shift_no_keys_pressed) {
-                    // Tap Shift to toggle Caps Word
+                } else if (left_shift_pressed && right_shift_pressed) {
+                    // Tap Both Shift Keys to toggle Caps Word
                     caps_word_toggle();
-                }
+                }            
             }
             return true;
-        default:
-            shift_no_keys_pressed = false;
     }
     return false;
 }
@@ -56,7 +55,7 @@ bool handle_rgb_controls(uint16_t keycode, keyrecord_t *record, rgb_config_t *la
                 rgb_matrix_decrease_hue();
                 layer_rgb[0].hsv.h = rgb_matrix_get_hue();
                 return true;
-            // Brightness controls mirror audio controls on same buttons    
+            // Brightness controls mirror audio controls on same buttons
             case RGB_TOG:   // FN + Mute to toggle RGB
                 layer_rgb[0].enable = !layer_rgb[0].enable;
                 rgb_matrix_toggle();

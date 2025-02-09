@@ -5,6 +5,8 @@
 bool handle_shift_keys(uint16_t keycode, keyrecord_t *record);
 bool handle_rgb_controls(uint16_t keycode, keyrecord_t *record, rgb_config_t *layer_rgb);
 bool handle_macros(uint16_t keycode, keyrecord_t *record);
+extern bool left_shift_pressed;
+extern bool right_shift_pressed;
 
 typedef struct {
     uint16_t keycode;

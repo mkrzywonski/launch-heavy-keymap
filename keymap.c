@@ -1,10 +1,12 @@
 #include QMK_KEYBOARD_H
+#include "system76_ec.h"
 #include "process_record_handlers.h"
 #include "timer.h"
 #include "static_macros.h"
 #include "custom_keycodes.h"
 #include "idle_messages.h"
 #include "calculator.h"
+#include "repeat.h"
 #include "rgb.h"
 #include <stdio.h>
 
@@ -38,22 +40,22 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   /* Layer 0, default layer
 __________________________________________________________________________________________________________________________________  ________  ___________________________________
 |        |        |        |        |        |        |        |        |        |        |        |        |        |            ||        || PRINT  |  MUTE  | VOLUME | VOLUME |
-|  ESC   |   F1   |   F2   |   F3   |   F4   |   F5   |   F6   |   F7   |   F8   |   F9   |  F10   |  F11   |  F12   |  DELETE    ||  HOME  || SCREEN |        |  DOWN  |   UP   |
+| ESC/FN |   F1   |   F2   |   F3   |   F4   |   F5   |   F6   |   F7   |   F8   |   F9   |  F10   |  F11   |  F12   | BACKSPACE  ||  HOME  || SCREEN |        |  DOWN  |   UP   |
 |________|________|________|________|________|________|________|________|________|________|________|________|________|____________||________||________|________|________|________|
 |        |        |        |        |        |        |        |        |        |        |        |        |        |            ||        || NUM    | NUM    | NUM    | NUM    |
-|  ~`    |   1    |   2    |   3    |   4    |   5    |   6    |   7    |   8    |   9    |   0    |  _ -   | =  +   | BACKSPACE  ||  PGUP  || LOCK   | SLASH  |  *     |  -     |
+|  ~`    |   1    |   2    |   3    |   4    |   5    |   6    |   7    |   8    |   9    |   0    |  _ -   | =  +   |   DELETE   ||  PGUP  || LOCK   | SLASH  |  *     |  -     |
 |________|________|________|________|________|________|________|________|________|________|________|________|________|____________||________||________|________|________|________|
 |            |        |        |        |        |        |        |        |        |        |        |  [     |   ]    |        ||        || NUM    | NUM    | NUM    |        |
 |     TAB    |   Q    |   W    |   E    |   R    |   T    |   Y    |   U    |   I    |   O    |   P    |  {     |   }    |  |   \ ||  PGDN  ||  7     |  8     |  9     |        |
 |____________|________|________|________|________|________|________|________|________|________|________|________|________|________||________||________|________|________| NUM    |
   |            |        |        |        |        |        |        |        |        |        |   ;    |   '    |            |   |        || NUM    | NUM    | NUM    |  +     |
-  |    CAPS    |   A    |   S    |   D    |   F    |   G    |   H    |   J    |   K    |   L    |   :    |   "    |   ENTER    |   |  END   ||  4     |  5     |  6     |        |
+  |     ESC    |   A    |   S    |   D    |   F    |   G    |   H    |   J    |   K    |   L    |   :    |   "    |   ENTER    |   |  END   ||  4     |  5     |  6     |        |
   |____________|________|________|________|________|________|________|________|________|________|________|________|____________|___|________||________|________|________|________|
   |                |        |        |        |        |        |        |        |   ,    |    .   |   /    |            |        |         | NUM    | NUM    | NUM    |        |
   |     SHIFT      |   Z    |   X    |   C    |   V    |   B    |   N    |   M    |   <    |    >   |   ?    |   SHIFT    |   UP   |         |  1     |  2     |  3     |        |
   |________________|________|________|________|________|________|________|________|________|________|________|____________|________|________ |________|________|________| NUM    |
   |            |        |       |        |                 |                 |        |        |             |   |        |        |        ||       NUM       | NUM    | ENTER  |
-  |    CTRL    |   FN   |  SUP  |  LALT  |    SPACE        |      SPACE      |  RALT  |  MACRO |    CTRL     |   |  LEFT  |  DOWN  | RIGHT  ||        0        |  .     |        |
+  |    CTRL    | MACRO1 |  SUP  |  LALT  |    SPACE        |      SPACE      |  RALT  | MACRO2 |    CTRL     |   |  LEFT  |  DOWN  | RIGHT  ||        0        |  .     |        |
   |____________|________|_______|________|_________________|_________________|________|________|_____________|   |________|________|________||_________________|________|________|
 */
 
@@ -61,18 +63,18 @@ ________________________________________________________________________________
     LT(1,KC_ESC), KC_F1, KC_F2, KC_F3,  KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  KC_BSPC,      KC_HOME,  KC_PSCR, KC_MUTE, KC_VOLD, KC_VOLU,
     KC_GRV,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,    KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_MINS, KC_EQL,  KC_DEL,       KC_PGUP,  KC_NUM,  KC_PSLS, KC_PAST, KC_PMNS,
         KC_TAB,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,    KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    KC_LBRC, KC_RBRC, KC_BSLS,  KC_PGDN,  KC_P7,   KC_P8,   KC_P9,   KC_PPLS,
-          KC_CAPS, KC_A,    KC_S,    KC_D,    KC_F,    KC_G,    KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN, KC_QUOT,    KC_ENT,       KC_END,   KC_P4,   KC_P5,   KC_P6,
+          KC_ESC,  KC_A,    KC_S,    KC_D,    KC_F,    KC_G,    KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN, KC_QUOT,    KC_ENT,       KC_END,   KC_P4,   KC_P5,   KC_P6,
           KC_LSFT,     KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    KC_N,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH,    KC_RSFT,    KC_UP,           KC_P1,   KC_P2,   KC_P3,   KC_PENT,
-          KC_LCTL, MO(1), KC_LGUI,   KC_LALT,     KC_SPC,           KC_SPC,     KC_RALT,   DM_PLY1,   KC_RCTL,          KC_LEFT, KC_DOWN, KC_RGHT,        KC_P0,      KC_PDOT
+          KC_LCTL, DM_PLY1, KC_LGUI, KC_LALT,    KC_SPC,           KC_SPC,     KC_RALT,  DM_PLY2,   KC_RCTL,          KC_LEFT, KC_DOWN, KC_RGHT,    KC_P0,      KC_PDOT
   ),
 
    /* Layer 1, function layer
 __________________________________________________________________________________________________________________________________  ________  ___________________________________
 |        |        |        |        |        |        |        |        |        |        |        |        |        |            || LAYER  ||  RGB   |  RGB   |  RGB   |  RGB   |
-| QK_BOOT|  F13   |  F14   |  F15   |  F16   |  F17   |  F18   |  F19   |  F20   |  F21   |  F22   |  F23   |  F24   |    INS     ||   4    ||  HUE+  | TOGGLE |  DIM   | BRIGHT|
+|        |  F13   |  F14   |  F15   |  F16   |  F17   |  F18   |  F19   |  F20   |  F21   |  F22   |  F23   |  F24   | BACKSPACE  ||   4    ||  HUE+  | TOGGLE |  DIM   | BRIGHT|
 |________|________|________|________|________|________|________|________|________|________|________|________|________|____________||________||________|________|________|________|
 |        | SOLID  | CYCLE  | LEFT-> | UP->   | OUT->  | OUT->  | RAINBOW| PIN    | SPIRAL | RAIN   | SPLASH | MULTI  |            || LAYER  ||  RGB   | RGB SAT| RGB SAT| RGB SAT|
-|        | COLOR  | ALL    | RIGHT  | DOWN   | IN     | IN DUAL| CHAVRON| WHEEL  |        | DROPS  |        | SPLASH |    DEL     ||   3    ||  HUE-  | TOGGLE |    -   |    +   |
+|        | COLOR  | ALL    | RIGHT  | DOWN   | IN     | IN DUAL| CHAVRON| WHEEL  |        | DROPS  |        | SPLASH |   REBOOT   ||   3    ||  HUE-  | TOGGLE |    -   |    +   |
 |________|________|________|________|________|________|________|________|________|________|________|________|________|____________||________||________|________|________|________|
 |            |        |        |        |        |        |        |        |        |        |        |        |        |        || LAYER  ||        |        |        |        |
 |            |        |        | X_EMAIL|        | X_PHONE|        |        |KC_IDLE| C_OCT  |  C_PI  |        |        |        ||   2    ||        |        |        | RGB    |
@@ -84,19 +86,19 @@ ________________________________________________________________________________
   |    CAPS LOCK   |        |        | C_CLEAR|        | C_BIN  | X_NAME |        |        |        |        |  CAPS LOCK |        |         | C_HEXA | C_HEXB | C_HEXC | RGB    |
   |________________|________|________|________|________|________|________|________|________|________|________|____________|________|________ |________|________|________| EFFECT |
   |            |        |       |        |                 |                 |        | MACRO  |             |   |        |        |        ||                 |        | SPEED  |
-  |            |        |       |        |                 |                 |        | RECORD |             |   |        |        |        ||                 |        |   -    |
+  |            |        |QK_BOOT|        |                 |                 |        | RECORD |             |   |        |        |        ||                 |        |   -    |
   |____________|________|_______|________|_________________|_________________|________|________|_____________|   |________|________|________||_________________|________|________|
   * 'QK_BOOT' resets the controller and puts the board into firmware flashing mode. If this key is hit accidentally, just unplug the board
   *        and plug it back in.
   */
 
   [Second] = LAYOUT(
-    QK_BOOT, KC_F13,  KC_F14,  KC_F15,  KC_F16,  KC_F17,  KC_F18,  KC_F19,  KC_F20,  KC_F21,  KC_F22,  KC_F23,  KC_F24,  KC_DEL,       TO(3),    RGB_PREV, RGB_TOG, RGB_VAD, RGB_VAI,
-    _______, RGB_01,  RGB_02,  RGB_03,  RGB_04,  RGB_05,  RGB_06,  RGB_07,  RGB_08,  RGB_09,  RGB_10,  RGB_11,  RGB_12,  KC_INS,       TO(2),    RGB_NEXT, RGB_SAT, RGB_SATD, RGB_SATI,
-        _______, _______, _______, X_EMAIL, _______, X_PHONE,  _______, _______, KC_IDLE, C_OCT,   C_PI,    _______, _______, _______, LAYER1,    _______, _______, _______, RGB_SPDI,
+    _______, KC_F13,  KC_F14,  KC_F15,  KC_F16,  KC_F17,  KC_F18,  KC_F19,  KC_F20,  KC_F21,  KC_F22,  KC_F23,  KC_F24,  _______,      TO(3),    RGB_PREV, RGB_TOG, RGB_VAD, RGB_VAI,
+    _______, RGB_01,  RGB_02,  RGB_03,  RGB_04,  RGB_05,  RGB_06,  RGB_07,  RGB_08,  RGB_09,  RGB_10,  RGB_11,  RGB_12,  _______,      TO(2),    RGB_NEXT, RGB_SAT, RGB_SATD, RGB_SATI,
+        _______, _______, _______, X_EMAIL, KC_RPT,  X_PHONE,  _______, _______, KC_IDLE, C_OCT,   C_PI,    _______, _______, _______, LAYER1,    _______, _______, _______, RGB_SPDI,
           _______, X_ADDR,  _______, C_DEC,   X_FIRST, _______, C_HEX,   _______, _______,   X_LAST,  _______, _______,    _______,    TO(0),    C_HEXD,  C_HEXE,  C_HEXF,
-          KC_CAPS,     _______, _______, C_CLEAR, _______, C_BIN,   X_NAME, _______, _______, _______, _______,    KC_CAPS,  DT_UP,              C_HEXA,  C_HEXB,  C_HEXC,  RGB_SPDD,
-          _______, _______, _______, _______,     _______,          _______,    _______,   DM_REC1,  _______,        _______, DT_DOWN, DT_PRNT,         _______,    _______
+          _______,     _______, _______, C_CLEAR, _______, C_BIN,   X_NAME, _______, _______, _______, _______,    _______,  DT_UP,              C_HEXA,  C_HEXB,  C_HEXC,  RGB_SPDD,
+          _______, DM_REC1, _______, _______,     _______,          _______,    _______,   DM_REC2,  _______,        _______, DT_DOWN, DT_PRNT,         _______,    _______
   ),
 
   [Third] = LAYOUT(
@@ -257,6 +259,7 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     }
 
     calculator_rgb_display();
+    repeat_mode_display();
 
     // Make delete key red when not n insert mode
     if (!insert_mode) {
@@ -271,7 +274,7 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
             .v = my_layer_rgb[0].hsv.v
         });
 
-        // Set base layer colors first
+        // Set base layer colors
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
             for (uint8_t col = 0; col < MATRIX_COLS; col++) {
                 uint8_t index = g_led_config.matrix_co[row][col];
@@ -355,10 +358,29 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         return false;    
     }
 
+    if (!handle_repeat(keycode, record)) {
+        return false;    
+    }
+
     if (keycode == KC_IDLE) {
         if(record->event.pressed) {
             // Flash idle-timer message
             idle_ms = IDLE_TIMEOUT_MS;
+        }
+        return false;
+    }
+
+    if (keycode == QK_BOOT) {
+        if (record->event.pressed) {
+            system76_ec_unlock();  // Unlock the bootloader
+            bootloader_jump();     // Immediately enter bootloader mode
+        }
+        return false;
+    }
+
+    if (keycode == Q_RESET) {
+        if (record->event.pressed) {
+            bootloader_jump();     // Immediately enter bootloader mode
         }
         return false;
     }

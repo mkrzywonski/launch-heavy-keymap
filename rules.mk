@@ -7,6 +7,7 @@ DYNAMIC_TAPPING_TERM_ENABLE = yes
 SRC += process_record_handlers.c
 SRC += calculator.c
 SRC += rgb.c
+SRC += repeat.c
 
 CFLAGS += -flto=4 -fno-common
 LDFLAGS += -Wl,--no-warn-rwx-segments
