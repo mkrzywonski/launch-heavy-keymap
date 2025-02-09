@@ -29,6 +29,9 @@ Shinethrough keycaps from [FKcustom](https://fkcaps.com/custom/EQU8WA)
   - Enter repeat count on numpad
   - Type character to repeat
 - Fn + I to play random idle-timeout message
+- Fn + Up to increase Dynamic Tap Timeout
+- Fn + Down to decrease Dynamic Tap Timeout
+- Fn + Right to print Dynamic Tap Timeout
 
 ## Macros
 ### Dynamic Macro Recording
