@@ -20,11 +20,7 @@ bool handle_shift_keys(uint16_t keycode, keyrecord_t *record) {
                 right_shift_pressed = record->event.pressed;
             }
             if (record->event.pressed) {        // Key pressed
-                if (get_mods() & MOD_MASK_CTRL) {
-                    // CTRL + Shift = Caps Lock
-                    clear_mods();
-                    tap_code(KC_CAPS);
-                } else if (left_shift_pressed && right_shift_pressed) {
+                if (left_shift_pressed && right_shift_pressed) {
                     // Tap Both Shift Keys to toggle Caps Word
                     caps_word_toggle();
                 }            
