@@ -23,6 +23,7 @@ static uint16_t last_timer = 0;
 char message[256];
 enum flash_states { OFF, RISE, ON, FALL, PAUSE };
 static enum flash_states flash_state = OFF;
+static bool rgb_controls_active = false;
 
 enum layers{ First, Second, Third, Fourth };
 
@@ -297,7 +298,8 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
                 uint16_t keycode = keymap_key_to_keycode(layer, (keypos_t){.row = row, .col = col});
                 if (keycode != KC_TRNS && keycode != 0) {
                     uint8_t index = g_led_config.matrix_co[row][col];
-                    if (index >= led_min && index < led_max && index != NO_LED) {
+                    if ((index >= led_min && index < led_max) &&
+                        (index != NO_LED) && (!rgb_controls_active)) {
                         rgb_matrix_set_color(index, layer_rgb.r, layer_rgb.g, layer_rgb.b);
                     }
                 }
@@ -325,7 +327,10 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
     // Handle RGB controls
     if (handle_rgb_controls(keycode, record, my_layer_rgb)) {
+        rgb_controls_active = true;
         return false;
+    } else if (record->event.pressed) {
+        rgb_controls_active = false;
     }
     
     // Handle Macros
