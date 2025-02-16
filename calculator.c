@@ -9,29 +9,29 @@
 #include <stdint.h>
 #include <string.h>
 
-double calculator_current_value = 0.0;
-double calculator_operand = 0.0;
-char calculator_operator = '+';
-int calculator_base = 10;
-char calculator_input_buffer[BUFFER_SIZE] = {0};
-int calculator_buf_index = 0;
-uint16_t calculator_last_keycode = KC_NO;
-bool calculator_last_keycode_valid = true;
-bool last_key_status_active = false;
+double   calculator_current_value             = 0.0;
+double   calculator_operand                   = 0.0;
+char     calculator_operator                  = '+';
+int      calculator_base                      = 10;
+char     calculator_input_buffer[BUFFER_SIZE] = {0};
+int      calculator_buf_index                 = 0;
+uint16_t calculator_last_keycode              = KC_NO;
+bool     calculator_last_keycode_valid        = true;
+bool     last_key_status_active               = false;
 uint16_t last_key_status_timer;
-bool clear_calc_status_active = false;
+bool     clear_calc_status_active = false;
 uint16_t clear_calc_status_timer;
-bool calculator_print_active = false;
+bool     calculator_print_active = false;
 
 bool handle_calculator_input(uint16_t keycode, keyrecord_t *record) {
     // If Num Lock is enabled, do nothing and return
     if (host_keyboard_led_state().num_lock) {
-        return true;    // Not for us, continue processing keycode
+        return true; // Not for us, continue processing keycode
     }
 
     // If keycode is not a numpad key, do nothing and return
     if (!is_calculator_keycode(keycode)) {
-        return true;    // Not for us, continue processing keycode
+        return true; // Not for us, continue processing keycode
     }
 
     // Handle calculator input
@@ -40,44 +40,43 @@ bool handle_calculator_input(uint16_t keycode, keyrecord_t *record) {
         // RGB matrix to provide visual feedback for input and results.
         // We will store the last key pressed and color ir red or green
         // to provide status information.
-        calculator_last_keycode = keycode;    // Store the last key pressed
-        calculator_last_keycode_valid = true; // default to true
-        last_key_status_active = true;
-        last_key_status_timer = timer_read();
+        calculator_last_keycode       = keycode; // Store the last key pressed
+        calculator_last_keycode_valid = true;    // default to true
+        last_key_status_active        = true;
+        last_key_status_timer         = timer_read();
 
         // Clear
         if (keycode == C_CLEAR) {
             clear_calculator();
-            return false;   // Keycode handled, don't process further
+            return false; // Keycode handled, don't process further
         }
         if (keycode == KC_P0 && get_mods() & (MOD_MASK_SHIFT | MOD_MASK_CTRL | MOD_MASK_ALT)) {
             clear_calculator();
-            return false;   // Keycode handled, don't process further
+            return false; // Keycode handled, don't process further
         }
-
 
         // Print Mode
         if (keycode == KC_PSCR) {
             calculator_last_keycode = KC_NO;
             calculator_print_active = !calculator_print_active;
-            return false;   // Keycode handled, don't process further
+            return false; // Keycode handled, don't process further
         }
 
         // Handle numeric inputs
         if (!handle_digits(keycode)) {
-            return false;   // Keycode handled, don't process further
+            return false; // Keycode handled, don't process further
         }
 
         // Handle base conversion keys: decimal, binary, octal, hexadecimal
         if (keycode == C_DEC || keycode == C_BIN || keycode == C_OCT || keycode == C_HEX) {
             handle_base_conversion(keycode);
-            return false;   // Keycode handled, don't process further
+            return false; // Keycode handled, don't process further
         }
 
         // Handle Operators: + - * /
         if (keycode == KC_PPLS || keycode == KC_PMNS || keycode == KC_PAST || keycode == KC_PSLS) {
             handle_operators(keycode);
-            return false;   // Keycode handled, don't process further
+            return false; // Keycode handled, don't process further
         }
 
         // Enter key (=)
@@ -87,9 +86,8 @@ bool handle_calculator_input(uint16_t keycode, keyrecord_t *record) {
             } else {
                 handle_enter(keycode);
             }
-            return false;   // Keycode handled, don't process further
+            return false; // Keycode handled, don't process further
         }
-
     }
 
     return true; // Keycode not handled, continue processing
@@ -103,27 +101,25 @@ void print_result(void) {
 }
 
 bool is_calculator_keycode(uint16_t keycode) {
-    return ((keycode >= KC_PSLS && keycode <= KC_PDOT) ||
-        (keycode >= C_CLEAR && keycode <= C_PI) ||
-        (keycode == KC_PSCR));
+    return ((keycode >= KC_PSLS && keycode <= KC_PDOT) || (keycode >= C_CLEAR && keycode <= C_PI) || (keycode == KC_PSCR));
 }
 
 void clear_calculator(void) {
     if (calculator_input_buffer[0] != '\0' || calculator_operand != 0.0) {
         // Clear Entry
-        calculator_buf_index = 0;
+        calculator_buf_index       = 0;
         calculator_input_buffer[0] = '\0';
-        calculator_operand = 0.0;
+        calculator_operand         = 0.0;
     } else {
         // Clear All
         calculator_current_value = 0.0;
-        calculator_operator = '+';
+        calculator_operator      = '+';
     }
     clear_calc_status_active = true;
-    clear_calc_status_timer = timer_read();
+    clear_calc_status_timer  = timer_read();
 }
 
-const char* char_to_str(char c) {
+const char *char_to_str(char c) {
     static char str[2];
     str[0] = c;
     str[1] = '\0';
@@ -137,13 +133,13 @@ bool handle_digits(uint16_t keycode) {
         // Only add the decimal point if one doesn't already exist
         if (strchr(calculator_input_buffer, '.') == NULL) {
             calculator_input_buffer[calculator_buf_index++] = '.';
-            calculator_input_buffer[calculator_buf_index] = '\0';
+            calculator_input_buffer[calculator_buf_index]   = '\0';
             if (calculator_print_active) SEND_STRING(".");
 
         } else {
             calculator_last_keycode_valid = false;
         }
-        return false;   // Keycode handled, don't process further
+        return false; // Keycode handled, don't process further
     }
 
     // Accept negative numbers (- in first position)
@@ -151,15 +147,13 @@ bool handle_digits(uint16_t keycode) {
     if (keycode == KC_PMNS && calculator_buf_index == 0 && calculator_operator != '=') {
         // Add the minus sign to the input buffer
         calculator_input_buffer[calculator_buf_index++] = '-';
-        calculator_input_buffer[calculator_buf_index] = '\0';
+        calculator_input_buffer[calculator_buf_index]   = '\0';
         if (calculator_print_active) SEND_STRING("-");
-        return false;   // Keycode handled, don't process further
+        return false; // Keycode handled, don't process further
     }
 
     // Accept digits from 0 - F
-    if ((keycode >= KC_P1 && keycode <= KC_P0) ||
-        (keycode >= C_HEXA && keycode <= C_HEXF)) {
-
+    if ((keycode >= KC_P1 && keycode <= KC_P0) || (keycode >= C_HEXA && keycode <= C_HEXF)) {
         // Handle modifiers: shift, ctrl, alt
         if (get_mods() & (MOD_MASK_SHIFT | MOD_MASK_CTRL | MOD_MASK_ALT)) {
             if (calculator_base == 16) {
@@ -173,16 +167,16 @@ bool handle_digits(uint16_t keycode) {
         // Check if the keycode is valid for the current base
         if (key_numeric_value[keycode] < calculator_base) {
             // Add the digit to the input buffer
-            char digit = key_char_value[keycode];
+            char digit                                      = key_char_value[keycode];
             calculator_input_buffer[calculator_buf_index++] = digit;
-            calculator_input_buffer[calculator_buf_index] = '\0';
-            calculator_operand = string_to_double(calculator_input_buffer, calculator_base);
+            calculator_input_buffer[calculator_buf_index]   = '\0';
+            calculator_operand                              = string_to_double(calculator_input_buffer, calculator_base);
             if (calculator_print_active) SEND_STRING(char_to_str(digit));
         } else {
             calculator_last_keycode_valid = false;
         }
         set_mods(mod_state);
-        return false;   // Keycode handled, don't process further
+        return false; // Keycode handled, don't process further
     }
 
     // Pi
@@ -190,7 +184,7 @@ bool handle_digits(uint16_t keycode) {
         double_to_string(PI, calculator_base, calculator_input_buffer, sizeof(calculator_input_buffer), 9);
         calculator_operand = PI;
         if (calculator_print_active) SEND_STRING(calculator_input_buffer);
-        return false;   // Keycode handled, don't process further
+        return false; // Keycode handled, don't process further
     }
     return true; // Keycode not handled, continue processing
 }
@@ -215,24 +209,20 @@ void handle_operators(uint16_t keycode) {
     // So, when we receive a new operator, we perform the operation with the
     // current value and the operand, and set the new operator
 
-    if (keycode == KC_PPLS ||
-        keycode == KC_PMNS ||
-        keycode == KC_PAST ||
-        keycode == KC_PSLS) {
-
+    if (keycode == KC_PPLS || keycode == KC_PMNS || keycode == KC_PAST || keycode == KC_PSLS) {
         // Perform the operation with the current value and the operand
         calculator_current_value = perform_operation(calculator_current_value, calculator_operator, calculator_operand);
 
         // Set the new operator
         if (get_mods() & (MOD_MASK_SHIFT | MOD_MASK_CTRL | MOD_MASK_ALT)) {
             switch (keycode) {
-                case KC_PMNS:   // Shift-minus for roots
+                case KC_PMNS: // Shift-minus for roots
                     calculator_operator = 'r';
                     break;
-                case KC_PAST:   // Shift-* for exponents
+                case KC_PAST: // Shift-* for exponents
                     calculator_operator = '^';
                     break;
-                case KC_PSLS:   // Shift-/ for modulus
+                case KC_PSLS: // Shift-/ for modulus
                     calculator_operator = '%';
                     break;
             }
@@ -251,16 +241,16 @@ void handle_operators(uint16_t keycode) {
                 case 'e':
                     snprintf(formatted_str, sizeof(formatted_str), " ^ ");
                     break;
-                default: 
+                default:
                     snprintf(formatted_str, sizeof(formatted_str), " %c ", calculator_operator);
             }
             SEND_STRING(formatted_str);
         }
 
         // Reset the operand
-        calculator_buf_index = 0;
+        calculator_buf_index       = 0;
         calculator_input_buffer[0] = '\0';
-        calculator_operand = 0.0;
+        calculator_operand         = 0.0;
 
         char result[BUFFER_SIZE] = {0};
         double_to_string(calculator_current_value, calculator_base, result, sizeof(result), 9);
@@ -272,28 +262,28 @@ void handle_operators(uint16_t keycode) {
 
 double string_to_double(const char *buffer, uint16_t base) {
     if (base != 2 && base != 8 && base != 10 && base != 16) {
-        return 0.0;  // Unsupported base
+        return 0.0; // Unsupported base
     }
 
-    double result = 0.0;
-    double fraction_part = 0.0;
+    double result           = 0.0;
+    double fraction_part    = 0.0;
     double fraction_divisor = base;
-    int sign = 1;
-    int i = 0;
+    int    sign             = 1;
+    int    i                = 0;
 
     // Handle negative sign
     if (buffer[i] == '-') {
         sign = -1;
-        i++;  // Skip '-'
+        i++; // Skip '-'
     }
 
     // Integer part processing
     while (buffer[i] != '\0' && buffer[i] != '.') {
-        unsigned char c = buffer[i];
-        int digit = digit_numeric_value[c];
+        unsigned char c     = buffer[i];
+        int           digit = digit_numeric_value[c];
 
         if (digit >= base) {
-            return 0.0;  // Invalid digit for the base
+            return 0.0; // Invalid digit for the base
         }
 
         result = result * base + digit;
@@ -302,14 +292,14 @@ double string_to_double(const char *buffer, uint16_t base) {
 
     // Fractional part processing
     if (buffer[i] == '.') {
-        i++;  // Skip '.'
+        i++; // Skip '.'
 
         while (buffer[i] != '\0') {
-            unsigned char c = buffer[i];
-            int digit = digit_numeric_value[c];
+            unsigned char c     = buffer[i];
+            int           digit = digit_numeric_value[c];
 
             if (digit >= base) {
-                return 0.0;  // Invalid digit for the base
+                return 0.0; // Invalid digit for the base
             }
 
             fraction_part += digit / fraction_divisor;
@@ -332,21 +322,21 @@ void double_to_string(double value, uint16_t base, char *buffer, size_t buffer_s
     // Handle sign
     if (value < 0) {
         buffer[index++] = '-';
-        value = -value;
+        value           = -value;
     }
 
     // Extract integer part
-    uint64_t integer_part = (uint64_t)value;
-    double fractional_part = value - integer_part;
+    uint64_t integer_part    = (uint64_t)value;
+    double   fractional_part = value - integer_part;
 
     // Convert integer part to string
     char int_buffer[buffer_size];
-    int int_index = 0;
+    int  int_index = 0;
     if (integer_part == 0) {
         int_buffer[int_index++] = '0';
     } else {
         while (integer_part > 0) {
-            int digit = integer_part % base;
+            int digit               = integer_part % base;
             int_buffer[int_index++] = (digit < 10) ? (digit + '0') : (digit - 10 + 'A');
             integer_part /= base;
         }
@@ -359,29 +349,29 @@ void double_to_string(double value, uint16_t base, char *buffer, size_t buffer_s
 
     // Handle fractional part
     if (fractional_part > 0 && precision > 0) {
-        buffer[index++] = '.';  // Add decimal point
+        buffer[index++] = '.'; // Add decimal point
         for (int i = 0; i < precision; i++) {
             fractional_part *= base;
-            int digit = (int)fractional_part;
+            int digit       = (int)fractional_part;
             buffer[index++] = (digit < 10) ? (digit + '0') : (digit - 10 + 'A');
             fractional_part -= digit;
             if (fractional_part == 0) {
-                break;  // Stop if there's no remaining fraction
+                break; // Stop if there's no remaining fraction
             }
         }
-        
+
         // Remove trailing zeros
         while (index > 0 && buffer[index - 1] == '0') {
             index--;
         }
-        
+
         // Remove decimal point if it's the last character
         if (index > 0 && buffer[index - 1] == '.') {
             index--;
-        }        
+        }
     }
 
-    buffer[index] = '\0';  // Null-terminate the string
+    buffer[index] = '\0'; // Null-terminate the string
 }
 
 void handle_enter(uint16_t keycode) {
@@ -394,7 +384,7 @@ void handle_enter(uint16_t keycode) {
         calculator_operator = '=';
 
         // Reset the input buffer
-        calculator_buf_index = 0;
+        calculator_buf_index       = 0;
         calculator_input_buffer[0] = '\0';
 
         double_to_string(calculator_current_value, calculator_base, result, sizeof(result), 9);
@@ -402,7 +392,7 @@ void handle_enter(uint16_t keycode) {
             SEND_STRING(" = ");
             SEND_STRING(result);
             tap_code(KC_ENTER);
-        }        
+        }
         if (message[0] == '\0') {
             flash(result, true);
         }
@@ -484,12 +474,11 @@ double perform_operation(double result, char operator, double operand) {
 }
 
 void calculator_rgb_display(void) {
-
     // Default colors (direct assignment)
-    uint32_t calc_key_color = rgb(RGB_BLUE);
+    uint32_t calc_key_color       = rgb(RGB_BLUE);
     uint32_t calc_key_valid_color = rgb(RGB_GREEN);
     uint32_t calc_key_error_color = rgb(RGB_RED);
-    uint32_t calc_hex_key_color = rgb(RGB_PINK);
+    uint32_t calc_hex_key_color   = rgb(RGB_PINK);
 
     // If clear status is active, override color
     if (clear_calc_status_active && timer_elapsed(clear_calc_status_timer) < 500) {
@@ -556,7 +545,7 @@ void calculator_rgb_display(void) {
                 } else {
                     set_keycode_color(calculator_last_keycode, calc_key_error_color);
                 }
-            }            
+            }
         } else {
             last_key_status_active = false;
         }
